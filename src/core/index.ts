@@ -10,6 +10,7 @@ import { Embedder, getVectorDimensions, type EmbeddingConfig } from "./embedder.
 import { createDecayEngine, type DecayConfig, DEFAULT_DECAY_CONFIG } from "./decay-engine.js";
 import { createTierManager, type TierConfig, DEFAULT_TIER_CONFIG } from "./tier-manager.js";
 import { AccessTracker } from "./access-tracker.js";
+import { createLlmClient, type LlmClient, type LlmClientConfig } from "./llm-client.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -24,6 +25,7 @@ export interface MemoryCoreConfig {
   decay?: Partial<DecayConfig>;
   tier?: Partial<TierConfig>;
   enableLifecycle?: boolean;
+  llm?: Partial<LlmClientConfig>;
 }
 
 export interface MemoryCore {
@@ -31,6 +33,7 @@ export interface MemoryCore {
   retriever: MemoryRetriever;
   embedder: Embedder;
   accessTracker: AccessTracker | null;
+  llmClient: LlmClient | null;
 }
 
 // ============================================================================
@@ -73,7 +76,19 @@ export function createMemoryCore(config: MemoryCoreConfig): MemoryCore {
   };
   const retriever = new MemoryRetriever(store, embedder, retrievalConfig, accessTracker, decayEngine, tierManager);
 
-  return { store, retriever, embedder, accessTracker };
+  // LLM client (optional)
+  let llmClient: LlmClient | null = null;
+  if (config.llm?.apiKey) {
+    llmClient = createLlmClient({
+      apiKey: config.llm.apiKey,
+      model: config.llm.model || "gpt-4o-mini",
+      baseURL: config.llm.baseURL,
+      timeoutMs: config.llm.timeoutMs,
+      log: config.llm.log,
+    });
+  }
+
+  return { store, retriever, embedder, accessTracker, llmClient };
 }
 
 /**
@@ -97,6 +112,16 @@ export function createMemoryCoreFromEnv(): MemoryCore {
       '  export JINA_API_KEY="jina_xxx"'
     );
   }
+
+  // LLM client config (optional - for smart extraction, dedup, etc.)
+  const llmApiKey = process.env.LLM_API_KEY;
+  const llmConfig: Partial<LlmClientConfig> | undefined = llmApiKey
+    ? {
+        apiKey: llmApiKey,
+        model: process.env.LLM_MODEL || "gpt-4o-mini",
+        baseURL: process.env.LLM_BASE_URL,
+      }
+    : undefined;
 
   return createMemoryCore({
     dbPath: process.env.MEMORY_DB_PATH || join(homedir(), ".openclaw/memory/lancedb-pro"),
@@ -128,6 +153,7 @@ export function createMemoryCoreFromEnv(): MemoryCore {
       filterNoise: true,
       lengthNormAnchor: 400,
     },
+    llm: llmConfig,
   });
 }
 
@@ -141,3 +167,5 @@ export { Embedder, type EmbeddingConfig } from "./embedder.js";
 export { createDecayEngine, type DecayConfig, type DecayEngine, type DecayableMemory } from "./decay-engine.js";
 export { createTierManager, type TierConfig, type TierManager } from "./tier-manager.js";
 export { AccessTracker } from "./access-tracker.js";
+export { createLlmClient, type LlmClient, type LlmClientConfig } from "./llm-client.js";
+export { buildExtractionPrompt, buildDedupPrompt, buildMergePrompt } from "./extraction-prompts.js";
