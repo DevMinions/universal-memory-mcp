@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "universal-memory": {
+      "type": "local",
+      "command": ["node", "/home/adamyu/workspace/universal-memory-mcp/dist/index.js"],
+      "enabled": true,
+      "environment": {
+        "JINA_API_KEY": "${JINA_API_KEY}"
+      }
+    }
+  }
+}
