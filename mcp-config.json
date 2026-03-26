@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "universal-memory": {
+      "command": "node",
+      "args": ["/home/adamyu/workspace/universal-memory-mcp/dist/index.js"],
+      "env": {
+        "JINA_API_KEY": "${JINA_API_KEY}"
+      }
+    }
+  }
+}
