@@ -5,30 +5,20 @@
 
 import type { MemoryEntry, MemoryStore, MemorySearchResult } from "./store.js";
 import type { Embedder } from "./embedder.js";
+import {
+  AccessTracker,
+  computeEffectiveHalfLife,
+  parseAccessMetadata,
+} from "./access-tracker.js";
 import { filterNoise } from "./noise-filter.js";
+import type { DecayEngine, DecayableMemory } from "./decay-engine.js";
+import type { TierManager } from "./tier-manager.js";
 import {
   getDecayableFromEntry,
   isMemoryActiveAt,
   parseSmartMetadata,
   toLifecycleMemory,
-  type DecayableMemory,
 } from "./smart-metadata.js";
-
-// Placeholder types — will be replaced with real imports in Step 5
-export class AccessTracker {
-  recordAccess(_ids: string[]): void {}
-}
-export function computeEffectiveHalfLife(_baseHalfLife: number, _accessCount: number, _lastAccessedAt: number, _reinforcementFactor: number, _maxMultiplier: number): number { return _baseHalfLife; }
-export function parseAccessMetadata(_metadata: string | undefined): { accessCount: number; lastAccessedAt: number } {
-  return { accessCount: 0, lastAccessedAt: 0 };
-}
-export interface DecayEngine {
-  applySearchBoost(scored: Array<{ memory: DecayableMemory; score: number }>, now?: number): void;
-  score(memory: DecayableMemory, now?: number): { composite: number };
-}
-export interface TierManager {
-  evaluate(memory: DecayableMemory, decayScore: { composite: number }, now?: number): { toTier: import("./memory-categories.js").MemoryTier } | null;
-}
 
 // ============================================================================
 // Types & Configuration
@@ -367,19 +357,14 @@ function cosineSimilarity(a: number[], b: number[]): number {
 // ============================================================================
 
 export class MemoryRetriever {
-  private accessTracker: AccessTracker | null = null;
-  private tierManager: TierManager | null = null;
-
   constructor(
     private store: MemoryStore,
     private embedder: Embedder,
     private config: RetrievalConfig = DEFAULT_RETRIEVAL_CONFIG,
+    private accessTracker: AccessTracker | null = null,
     private decayEngine: DecayEngine | null = null,
+    private tierManager: TierManager | null = null,
   ) { }
-
-  setAccessTracker(tracker: AccessTracker): void {
-    this.accessTracker = tracker;
-  }
 
   private filterActiveResults<T extends MemorySearchResult>(results: T[]): T[] {
     return results.filter((result) =>
@@ -1195,8 +1180,16 @@ export function createRetriever(
   store: MemoryStore,
   embedder: Embedder,
   config?: Partial<RetrievalConfig>,
-  options?: { decayEngine?: DecayEngine | null },
+  options?: { accessTracker?: AccessTracker | null; decayEngine?: DecayEngine | null; tierManager?: TierManager | null },
 ): MemoryRetriever {
   const fullConfig = { ...DEFAULT_RETRIEVAL_CONFIG, ...config };
-  return new MemoryRetriever(store, embedder, fullConfig, options?.decayEngine ?? null);
+  return new MemoryRetriever(
+    store,
+    embedder,
+    fullConfig,
+    options?.accessTracker ?? null,
+    options?.decayEngine ?? null,
+    options?.tierManager ?? null,
+  );
 }
+

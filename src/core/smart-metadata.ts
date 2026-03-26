@@ -3,16 +3,8 @@ import {
   type MemoryCategory,
   type MemoryTier,
 } from "./memory-categories.js";
-// DecayableMemory interface - will be replaced with import from decay-engine.ts in Step 5
-export interface DecayableMemory {
-  id: string;
-  importance: number;
-  confidence: number;
-  tier: import("./memory-categories.js").MemoryTier;
-  accessCount: number;
-  createdAt: number;
-  lastAccessedAt: number;
-}
+export type { DecayableMemory } from "./decay-engine.js";
+import type { DecayableMemory } from "./decay-engine.js";
 
 type LegacyStoreCategory =
   | "preference"

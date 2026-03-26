@@ -7,6 +7,9 @@
 import { MemoryStore, type StoreConfig } from "./store.js";
 import { MemoryRetriever, DEFAULT_RETRIEVAL_CONFIG, type RetrievalConfig } from "./retriever.js";
 import { Embedder, getVectorDimensions, type EmbeddingConfig } from "./embedder.js";
+import { createDecayEngine, type DecayConfig, DEFAULT_DECAY_CONFIG } from "./decay-engine.js";
+import { createTierManager, type TierConfig, DEFAULT_TIER_CONFIG } from "./tier-manager.js";
+import { AccessTracker } from "./access-tracker.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -18,12 +21,16 @@ export interface MemoryCoreConfig {
   dbPath?: string;
   embedding: EmbeddingConfig;
   retrieval?: Partial<RetrievalConfig>;
+  decay?: Partial<DecayConfig>;
+  tier?: Partial<TierConfig>;
+  enableLifecycle?: boolean;
 }
 
 export interface MemoryCore {
   store: MemoryStore;
   retriever: MemoryRetriever;
   embedder: Embedder;
+  accessTracker: AccessTracker | null;
 }
 
 // ============================================================================
@@ -42,13 +49,31 @@ export function createMemoryCore(config: MemoryCoreConfig): MemoryCore {
   };
   const store = new MemoryStore(storeConfig);
 
+  // Lifecycle modules (decay, tier, access tracking)
+  const enableLifecycle = config.enableLifecycle !== false;
+  let decayEngine = null;
+  let tierManager = null;
+  let accessTracker: AccessTracker | null = null;
+
+  if (enableLifecycle) {
+    const decayConfig: DecayConfig = { ...DEFAULT_DECAY_CONFIG, ...config.decay };
+    const tierConfig: TierConfig = { ...DEFAULT_TIER_CONFIG, ...config.tier };
+    decayEngine = createDecayEngine(decayConfig);
+    tierManager = createTierManager(tierConfig);
+    accessTracker = new AccessTracker({
+      store,
+      logger: { warn: (...args) => console.error("[access-tracker]", ...args) },
+      debounceMs: 5_000,
+    });
+  }
+
   const retrievalConfig: RetrievalConfig = {
     ...DEFAULT_RETRIEVAL_CONFIG,
     ...config.retrieval,
   };
-  const retriever = new MemoryRetriever(store, embedder, retrievalConfig, null);
+  const retriever = new MemoryRetriever(store, embedder, retrievalConfig, accessTracker, decayEngine, tierManager);
 
-  return { store, retriever, embedder };
+  return { store, retriever, embedder, accessTracker };
 }
 
 /**
@@ -113,3 +138,6 @@ export function createMemoryCoreFromEnv(): MemoryCore {
 export { MemoryStore, type MemoryEntry, type MemorySearchResult } from "./store.js";
 export { MemoryRetriever, type RetrievalConfig, type RetrievalResult } from "./retriever.js";
 export { Embedder, type EmbeddingConfig } from "./embedder.js";
+export { createDecayEngine, type DecayConfig, type DecayEngine, type DecayableMemory } from "./decay-engine.js";
+export { createTierManager, type TierConfig, type TierManager } from "./tier-manager.js";
+export { AccessTracker } from "./access-tracker.js";

@@ -1,0 +1,5 @@
+accessTracker: ACTIVE
+memories: 362
+recall: 2
+topScore: 0.593
+OK
