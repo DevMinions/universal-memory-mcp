@@ -37,7 +37,7 @@
 ### 1. 安装
 
 ```bash
-git clone https://github.com/your-username/universal-memory-mcp.git
+git clone https://github.com/DevMinions/universal-memory-mcp.git
 cd universal-memory-mcp
 npm install && npm run build
 ```
