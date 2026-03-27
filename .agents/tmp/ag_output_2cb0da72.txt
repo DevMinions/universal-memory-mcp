@@ -1,2 +1,5 @@
-no opencode config
+[master 24958b7] feat(rules): add memory auto-management rules for Antigravity and OpenCode
+ 3 files changed, 69 insertions(+), 39 deletions(-)
+ create mode 100644 .agents/rules/memory-rules.md
+ create mode 100644 AGENTS.md
 ===AGENT COMMAND DONE===
