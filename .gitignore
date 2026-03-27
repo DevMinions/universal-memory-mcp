@@ -3,3 +3,5 @@ dist/
 *.js.map
 .env
 config.json
+.agents/
+docs/

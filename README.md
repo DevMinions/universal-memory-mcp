@@ -28,7 +28,7 @@
 
 通过在 AI 工具的 **System Prompt / Rules** 中引导 AI 主动使用记忆工具。项目提供了现成的规则文件（见下方 [规则示例](#-规则示例rules)），效果约覆盖原生体验的 80-90%。
 
-> 💡 **未来展望**: 当 MCP 客户端支持 [Sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) 后，MCP Server 将可以主动请求 AI 做事，从而实现与原生插件完全等价的自动记忆管理。详见 [Sampling 升级计划](docs/plans/2026-03-27-sampling-upgrade-plan.md)。
+> 💡 **未来展望**: 当 MCP 客户端支持 [Sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) 后，MCP Server 将可以主动请求 AI 做事，从而实现与原生插件完全等价的自动记忆管理。
 
 ---
 

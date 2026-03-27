@@ -1,22 +1,8 @@
-[config] Loaded user config from: /home/adamyu/workspace/universal-memory-mcp/config.json
-Universal Memory MCP Server running on stdio (18 tools registered)
-=== 1. Ping ===
-  Status: ok, Tools: 18
-=== 2. Stats ===
-  Total: 368 memories
-=== 3. Store ===
-  Similar memory already exists (similarity: 0.996): "Full config e2e test at 2026
-=== 4. Recall (hybrid + rerank) ===
-  Found 3 memories:
-
-1. [f52a4ef2-4253-4258-8bbc-0a33806a6609] [fact/global] (score: 0.62)
-   Pitfall: OpenClaw Gateway Extension fails to load with "Register failed: 404". Cause: TypeScript extensions 
-=== 5. Extract (LLM) ===
-  Error: Unexpected token 'M', "MCP error "... is not valid JSON
-=== 6. Explain Rank ===
-  Top: score=0.706 tier=working state=confirmed
-=== 7. Compact (dry run) ===
-  {"success":true,"action":"compact_preview","scanned":2,"duplicates":0,"archived":0,"sample":[],"mess
-
-=== ALL 7 TESTS PASSED ===
+[master 7432075] docs: rewrite README for GitHub release
+ 7 files changed, 378 insertions(+), 77 deletions(-)
+ create mode 100644 LICENSE
+ create mode 100644 examples/AGENTS.md
+ create mode 100644 examples/mcp-config-http.json
+ create mode 100644 examples/mcp-config-stdio.json
+ create mode 100644 examples/rules-antigravity.md
 ===AGENT COMMAND DONE===
