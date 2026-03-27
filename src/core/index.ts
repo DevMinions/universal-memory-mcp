@@ -11,6 +11,7 @@ import { createDecayEngine, type DecayConfig, DEFAULT_DECAY_CONFIG } from "./dec
 import { createTierManager, type TierConfig, DEFAULT_TIER_CONFIG } from "./tier-manager.js";
 import { AccessTracker } from "./access-tracker.js";
 import { createLlmClient, type LlmClient, type LlmClientConfig } from "./llm-client.js";
+import { loadConfig } from "./config-loader.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -92,90 +93,42 @@ export function createMemoryCore(config: MemoryCoreConfig): MemoryCore {
 }
 
 /**
- * Create MemoryCore from environment variables.
+ * Create MemoryCore from config file + environment variables.
  * 
- * Required env vars:
- *   JINA_API_KEY - Jina API key for embedding and reranking
+ * Config priority: env vars > config.json > config.default.json
  * 
- * Optional env vars:
- *   MEMORY_DB_PATH      - LanceDB database path (default: ~/.openclaw/memory/lancedb-pro)
- *   EMBEDDING_MODEL     - Embedding model name (default: jina-embeddings-v3)
- *   EMBEDDING_BASE_URL  - Embedding API base URL (default: https://api.jina.ai/v1)
- *   EMBEDDING_DIMENSIONS - Vector dimensions (default: 1024)
+ * See config.default.json for all available options.
+ * Create a config.json to override any setting.
+ * Set MCP_CONFIG_PATH to use a custom config file path.
  */
 export function createMemoryCoreFromEnv(): MemoryCore {
-  const apiKey = process.env.JINA_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "JINA_API_KEY environment variable is required.\n" +
-      "  Set it in your MCP client config or export it:\n" +
-      '  export JINA_API_KEY="jina_xxx"'
-    );
-  }
+  const cfg = loadConfig();
 
-  // LLM client config — prefer env var, fall back to OpenRouter free endpoint from OpenClaw config
-  const llmApiKey = process.env.LLM_API_KEY || "OPENROUTER_API_KEY_REDACTED";
-  const llmConfig: Partial<LlmClientConfig> = {
-    apiKey: llmApiKey,
-    model: process.env.LLM_MODEL || "openrouter/free",
-    baseURL: process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1",
-    timeoutMs: 60000,
-  };
+  const llmConfig: Partial<LlmClientConfig> | undefined = cfg.llm?.apiKey
+    ? {
+        apiKey: cfg.llm.apiKey,
+        model: cfg.llm.model,
+        baseURL: cfg.llm.baseURL,
+        timeoutMs: cfg.llm.timeoutMs,
+      }
+    : undefined;
 
   return createMemoryCore({
-    dbPath: process.env.MEMORY_DB_PATH || join(homedir(), ".openclaw/memory/lancedb-pro"),
+    dbPath: cfg.dbPath,
     embedding: {
-      provider: "openai-compatible",
-      apiKey,
-      model: process.env.EMBEDDING_MODEL || "jina-embeddings-v3",
-      baseURL: process.env.EMBEDDING_BASE_URL || "https://api.jina.ai/v1",
-      dimensions: parseInt(process.env.EMBEDDING_DIMENSIONS || "1024", 10),
-      taskQuery: "retrieval.query",
-      taskPassage: "retrieval.passage",
-      normalized: true,
-      chunking: true,
+      provider: (cfg.embedding.provider || "openai-compatible") as "openai-compatible",
+      apiKey: cfg.embedding.apiKey,
+      model: cfg.embedding.model,
+      baseURL: cfg.embedding.baseURL,
+      dimensions: cfg.embedding.dimensions,
+      taskQuery: cfg.embedding.taskQuery,
+      taskPassage: cfg.embedding.taskPassage,
+      normalized: cfg.embedding.normalized,
+      chunking: cfg.embedding.chunking,
     },
-    retrieval: {
-      mode: "hybrid",
-      vectorWeight: 0.7,
-      bm25Weight: 0.3,
-      minScore: 0.6,
-      hardMinScore: 0.62,
-      rerank: "cross-encoder",
-      rerankApiKey: apiKey,
-      rerankProvider: "jina",
-      rerankModel: "jina-reranker-v3",
-      rerankEndpoint: "https://api.jina.ai/v1/rerank",
-      candidatePoolSize: 12,
-      recencyHalfLifeDays: 14,
-      recencyWeight: 0.1,
-      filterNoise: true,
-      lengthNormAnchor: 500,
-    },
-    decay: {
-      recencyHalfLifeDays: 30,
-      recencyWeight: 0.4,
-      frequencyWeight: 0.35,
-      intrinsicWeight: 0.25,
-      staleThreshold: 0.25,
-      searchBoostMin: 0.25,
-      importanceModulation: 2,
-      betaCore: 0.6,
-      betaWorking: 0.9,
-      betaPeripheral: 1.2,
-      coreDecayFloor: 0.95,
-      workingDecayFloor: 0.75,
-      peripheralDecayFloor: 0.4,
-    },
-    tier: {
-      coreAccessThreshold: 8,
-      coreCompositeThreshold: 0.75,
-      coreImportanceThreshold: 0.85,
-      workingAccessThreshold: 2,
-      workingCompositeThreshold: 0.45,
-      peripheralCompositeThreshold: 0.2,
-      peripheralAgeDays: 45,
-    },
+    retrieval: cfg.retrieval as Partial<RetrievalConfig>,
+    decay: cfg.decay,
+    tier: cfg.tier,
     llm: llmConfig,
   });
 }

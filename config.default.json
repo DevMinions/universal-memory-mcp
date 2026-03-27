@@ -1,0 +1,97 @@
+{
+  "dbPath": "~/.openclaw/memory/lancedb-pro",
+  "embedding": {
+    "apiKey": "${JINA_API_KEY}",
+    "model": "jina-embeddings-v3",
+    "baseURL": "https://api.jina.ai/v1",
+    "dimensions": 1024,
+    "taskQuery": "retrieval.query",
+    "taskPassage": "retrieval.passage",
+    "normalized": true,
+    "chunking": true
+  },
+  "llm": {
+    "apiKey": "${LLM_API_KEY}",
+    "model": "openrouter/free",
+    "baseURL": "https://openrouter.ai/api/v1",
+    "timeoutMs": 60000
+  },
+  "retrieval": {
+    "mode": "hybrid",
+    "vectorWeight": 0.7,
+    "bm25Weight": 0.3,
+    "minScore": 0.6,
+    "hardMinScore": 0.62,
+    "rerank": "cross-encoder",
+    "rerankProvider": "jina",
+    "rerankModel": "jina-reranker-v3",
+    "rerankEndpoint": "https://api.jina.ai/v1/rerank",
+    "rerankApiKey": "${JINA_API_KEY}",
+    "candidatePoolSize": 12,
+    "recencyHalfLifeDays": 14,
+    "recencyWeight": 0.1,
+    "filterNoise": true,
+    "lengthNormAnchor": 500,
+    "timeDecayHalfLifeDays": 45,
+    "reinforcementFactor": 0.85,
+    "maxHalfLifeMultiplier": 4
+  },
+  "decay": {
+    "recencyHalfLifeDays": 30,
+    "recencyWeight": 0.4,
+    "frequencyWeight": 0.35,
+    "intrinsicWeight": 0.25,
+    "staleThreshold": 0.25,
+    "searchBoostMin": 0.25,
+    "importanceModulation": 2,
+    "betaCore": 0.6,
+    "betaWorking": 0.9,
+    "betaPeripheral": 1.2,
+    "coreDecayFloor": 0.95,
+    "workingDecayFloor": 0.75,
+    "peripheralDecayFloor": 0.4
+  },
+  "tier": {
+    "coreAccessThreshold": 8,
+    "coreCompositeThreshold": 0.75,
+    "coreImportanceThreshold": 0.85,
+    "workingAccessThreshold": 2,
+    "workingCompositeThreshold": 0.45,
+    "peripheralCompositeThreshold": 0.2,
+    "peripheralAgeDays": 45
+  },
+  "admissionControl": {
+    "enabled": true,
+    "preset": "conservative",
+    "utilityMode": "standalone",
+    "rejectThreshold": 0.5,
+    "admitThreshold": 0.7,
+    "noveltyCandidatePoolSize": 12,
+    "auditMetadata": true,
+    "persistRejectedAudits": true,
+    "recency": {
+      "halfLifeDays": 10
+    },
+    "weights": {
+      "utility": 0.15,
+      "confidence": 0.15,
+      "novelty": 0.2,
+      "recency": 0.2,
+      "typePrior": 0.3
+    },
+    "typePriors": {
+      "profile": 0.98,
+      "preferences": 0.95,
+      "entities": 0.8,
+      "events": 0.5,
+      "cases": 0.85,
+      "patterns": 0.9
+    }
+  },
+  "smartExtraction": true,
+  "extractMinMessages": 2,
+  "extractMaxChars": 15000,
+  "selfImprovement": {
+    "enabled": true
+  }
+}

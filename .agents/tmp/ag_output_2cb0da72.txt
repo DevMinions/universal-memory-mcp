@@ -1,7 +1,5 @@
-[master 7e56f62] feat(deploy): add token auth + Docker support for cloud deployment
- 6 files changed, 102 insertions(+), 7 deletions(-)
- create mode 100644 .dockerignore
- create mode 100644 .env.example
- create mode 100644 Dockerfile
- create mode 100644 docker-compose.yml
+
+> universal-memory-mcp@0.1.0 build
+> tsc
+
 ===AGENT COMMAND DONE===
