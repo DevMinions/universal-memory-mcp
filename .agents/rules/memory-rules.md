@@ -21,6 +21,22 @@
 ### 对话结束时 — 反思总结
 当对话涉及较多技术讨论或重要决策时，调用 `memory_reflect` 总结不变式和衍生知识。
 
+### Scope 使用规则
+存储记忆时，根据内容选择合适的 scope：
+
+| Scope | 用途 | 示例 |
+|-------|------|------|
+| `global` | 通用知识、跨项目技能、通用偏好 | "喜欢用 TypeScript"、"服务器 IP 是 xxx" |
+| `project:approval` | 审批办公系统 (jzow-flow) | Vue3 组件、审批流程、MySQL 配置 |
+| `project:gamedev` | 游戏开发项目 | Godot 引擎、游戏设计、资源管理 |
+| `project:memory-mcp` | Universal Memory MCP 项目 | MCP 架构、LanceDB 配置 |
+| `personal` | 个人生活、习惯 | 作息时间、饮食偏好 |
+| `learning` | 学习笔记 | 技术学习、读书笔记 |
+
+- **不确定时用 `global`**
+- recall 时不传 scope 则搜索全部
+- 同一条信息不要存多个 scope
+
 ## 判断标准
 
 ### 什么时候该存储

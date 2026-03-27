@@ -18,6 +18,14 @@
 ### 自我改进
 遇到经验教训时调用 `self_improvement_log(type, summary, details)`
 
+### Scope 规则
+- 通用知识/偏好 → `scope: "global"`
+- 审批系统项目 → `scope: "project:approval"`
+- 游戏开发项目 → `scope: "project:gamedev"`
+- Memory MCP 项目 → `scope: "project:memory-mcp"`
+- 个人/学习 → `scope: "personal"` 或 `scope: "learning"`
+- 不确定时用 `global`
+
 ### 禁止
 - 不要告知用户"已存储记忆"，静默执行
 - 不要存储临时调试信息或一次性指令
