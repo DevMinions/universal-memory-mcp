@@ -14,6 +14,9 @@ import { registerExtractTool } from "./tools/extract.js";
 import { registerArchiveTool } from "./tools/archive.js";
 import { registerPromoteTool } from "./tools/promote.js";
 import { registerReflectTool } from "./tools/reflect.js";
+import { registerCompactTool } from "./tools/compact.js";
+import { registerExplainRankTool } from "./tools/explain-rank.js";
+import { registerSelfImprovementTools } from "./tools/self-improvement.js";
 
 const server = new McpServer({
   name: "universal-memory",
@@ -37,6 +40,9 @@ registerExtractTool(server, core);
 registerArchiveTool(server, core);
 registerPromoteTool(server, core);
 registerReflectTool(server, core);
+registerCompactTool(server, core);
+registerExplainRankTool(server, core);
+registerSelfImprovementTools(server, core);
 
 // Ping tool for connectivity testing
 server.tool("memory_ping", "Test connectivity to Universal Memory MCP Server", {}, async () => ({
@@ -47,7 +53,7 @@ server.tool("memory_ping", "Test connectivity to Universal Memory MCP Server", {
         status: "ok",
         server: "universal-memory-mcp",
         version: "0.1.0",
-        tools: 14,
+        tools: 18,
         timestamp: new Date().toISOString(),
       }),
     },
@@ -57,7 +63,7 @@ server.tool("memory_ping", "Test connectivity to Universal Memory MCP Server", {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Universal Memory MCP Server running on stdio (14 tools registered)");
+  console.error("Universal Memory MCP Server running on stdio (18 tools registered)");
 }
 
 main().catch((error) => {

@@ -1,0 +1,21 @@
+11f386b feat(tools): add memory_archive, memory_promote, memory_reflect tools
+9c3f41b feat(core): add adaptive-retrieval and self-improvement modules
+6bb7fd2 feat(core): add reflection-store (core reflection engine)
+6806bc0 feat(core): add reflection storage modules
+f68dbc7 feat(core): add reflection base modules (metadata, ranking, slices)
+b5f8199 feat(tools): add memory_extract tool (LLM-powered)
+3b95fd4 feat(core): add smart-extractor module (LLM-powered extraction)
+ee3eb44 feat(core): add admission-stats module
+c03c459 feat(core): add admission-control module
+199067f feat(core): add preference-slots module
+398e1c3 feat(core): add noise-prototypes module
+cc7a59b feat(core): integrate LLM client into MemoryCore
+a2a09f3 feat(core): add extraction-prompts module
+b56f228 feat(core): rewrite llm-client for standalone API key auth
+8f377dc docs: Phase 2 implementation plan - 24 atomic tasks for full migration
+f8a5763 docs: Phase 2 design - complete migration of memory-lancedb-pro capabilities
+a0ade5e feat(core): integrate decay engine, tier manager, and access tracker
+b5d88e4 feat: configure Antigravity + OpenCode MCP integration
+106bbf4 chore: cleanup E2E verification script
+88d0931 verify: E2E test passes - full store/recall/update/delete cycle
+===AGENT COMMAND DONE===
