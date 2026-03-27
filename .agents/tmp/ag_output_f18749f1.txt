@@ -1,4 +1,0 @@
-[master 8f377dc] docs: Phase 2 implementation plan - 24 atomic tasks for full migration
- 1 file changed, 525 insertions(+)
- create mode 100644 docs/plans/2026-03-26-phase2-implementation.md
-===AGENT COMMAND DONE===

@@ -1,8 +1,0 @@
-[master 7432075] docs: rewrite README for GitHub release
- 7 files changed, 378 insertions(+), 77 deletions(-)
- create mode 100644 LICENSE
- create mode 100644 examples/AGENTS.md
- create mode 100644 examples/mcp-config-http.json
- create mode 100644 examples/mcp-config-stdio.json
- create mode 100644 examples/rules-antigravity.md
-===AGENT COMMAND DONE===
