@@ -93,5 +93,12 @@
   "extractMaxChars": 15000,
   "selfImprovement": {
     "enabled": true
+  },
+  "cron": {
+    "enabled": false,
+    "compact": "0 3 * * *",
+    "decay": "0 */6 * * *",
+    "tierDowngrade": "0 4 * * 0",
+    "reindex": "0 5 * * 1"
   }
 }

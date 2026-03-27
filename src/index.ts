@@ -4,6 +4,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { createMemoryCoreFromEnv } from "./core/index.js";
+import { loadConfig } from "./core/config-loader.js";
+import { startScheduler, stopScheduler, type CronConfig, DEFAULT_CRON_CONFIG } from "./cron/scheduler.js";
 import { registerRecallTool } from "./tools/recall.js";
 import { registerStoreTool } from "./tools/store.js";
 import { registerDeleteTool } from "./tools/delete.js";
@@ -23,7 +25,9 @@ import { registerSelfImprovementTools } from "./tools/self-improvement.js";
 
 const TOOL_COUNT = 18;
 
-function createMcpServer(): McpServer {
+import type { MemoryCore } from "./core/index.js";
+
+function createMcpServer(): { server: McpServer; core: MemoryCore } {
   const server = new McpServer({
     name: "universal-memory",
     version: "0.2.0",
@@ -67,7 +71,7 @@ function createMcpServer(): McpServer {
     ],
   }));
 
-  return server;
+  return { server, core };
 }
 
 // ============================================================================
@@ -75,7 +79,7 @@ function createMcpServer(): McpServer {
 // ============================================================================
 
 async function runStdio() {
-  const server = createMcpServer();
+  const { server } = createMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(`Universal Memory MCP Server running on stdio (${TOOL_COUNT} tools registered)`);
@@ -94,6 +98,12 @@ async function runHttp() {
     console.error("⚠️  WARNING: MCP_AUTH_TOKEN not set — server has NO authentication!");
     console.error("   Set MCP_AUTH_TOKEN for production deployments.");
   }
+
+  // Start cron scheduler if enabled
+  const cfg = loadConfig();
+  const cronConfig: CronConfig = { ...DEFAULT_CRON_CONFIG, ...(cfg as any).cron };
+  const { core } = createMcpServer();
+  startScheduler(core, cronConfig);
 
   // Track active transports by session ID
   const transports = new Map<string, StreamableHTTPServerTransport>();
@@ -153,7 +163,7 @@ async function runHttp() {
 
       if (req.method === "POST" && !sessionId) {
         // New session — create server and transport
-        const server = createMcpServer();
+        const { server } = createMcpServer();
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
         });
@@ -203,10 +213,9 @@ async function runHttp() {
   // Graceful shutdown
   const shutdown = () => {
     console.error("\nShutting down...");
-    for (const [sid, transport] of transports) {
-      transport.close();
-      console.error(`  Closed session ${sid.slice(0, 8)}`);
-    }
+    stopScheduler();
+    for (const [, t] of transports) t.close();
+    transports.clear();
     httpServer.close(() => {
       console.error("Server stopped.");
       process.exit(0);
