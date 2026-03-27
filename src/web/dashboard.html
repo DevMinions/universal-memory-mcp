@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Universal Memory — Dashboard</title>
+<meta name="description" content="Universal Memory MCP Server 管理面板 — 可视化管理你的 AI 记忆库">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary:   #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card:      #1a2233;
+  --bg-hover:     #243049;
+  --bg-input:     #0d1423;
+  --border:       #2a3a52;
+  --border-hover: #3d5278;
+  --text-primary: #e8edf5;
+  --text-secondary:#8b9dc3;
+  --text-muted:   #5a6f8f;
+  --accent:       #6366f1;
+  --accent-hover: #818cf8;
+  --accent-glow:  rgba(99,102,241,0.15);
+  --success:      #22c55e;
+  --warning:      #f59e0b;
+  --danger:       #ef4444;
+  --info:         #3b82f6;
+  --radius:       10px;
+  --radius-sm:    6px;
+  --radius-lg:    16px;
+  --shadow:       0 4px 24px rgba(0,0,0,0.3);
+  --shadow-lg:    0 8px 40px rgba(0,0,0,0.4);
+  --transition:   200ms cubic-bezier(0.4,0,0.2,1);
+}
+
+html { font-size: 15px; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* Layout */
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(20px);
+}
+.header-brand {
+  display: flex; align-items: center; gap: 0.75rem;
+  font-weight: 700; font-size: 1.15rem;
+  color: var(--text-primary);
+}
+.header-brand .logo {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+}
+.header-version {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+}
+.header-status {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.8rem; color: var(--text-secondary);
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Navigation */
+.nav {
+  display: flex;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+.nav-btn {
+  background: none; border: none; color: var(--text-secondary);
+  padding: 0.85rem 1.25rem;
+  font-size: 0.85rem; font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition);
+  white-space: nowrap;
+  font-family: inherit;
+}
+.nav-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.nav-btn.active {
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* Main */
+.main { flex: 1; padding: 1.5rem 2rem; max-width: 1400px; width: 100%; margin: 0 auto; }
+
+/* Pages */
+.page { display: none; animation: fadeIn 0.3s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Stats Cards */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), #a78bfa);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.stat-card:hover { border-color: var(--border-hover); transform: translateY(-2px); box-shadow: var(--shadow); }
+.stat-card:hover::before { opacity: 1; }
+.stat-label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.stat-value { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--text-primary), var(--accent-hover)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.stat-sub { font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+/* Charts area */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+.chart-title {
+  font-size: 0.85rem; font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.chart-bars { display: flex; flex-direction: column; gap: 0.5rem; }
+.chart-bar-row { display: flex; align-items: center; gap: 0.75rem; }
+.chart-bar-label { font-size: 0.8rem; color: var(--text-secondary); min-width: 90px; text-align: right; }
+.chart-bar-track { flex: 1; height: 24px; background: var(--bg-input); border-radius: 12px; overflow: hidden; position: relative; }
+.chart-bar-fill {
+  height: 100%; border-radius: 12px;
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  display: flex; align-items: center; padding-left: 8px;
+  font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.9);
+  min-width: fit-content;
+}
+.chart-bar-count { font-size: 0.75rem; color: var(--text-muted); min-width: 36px; text-align: right; }
+
+/* Trend chart (canvas-based mini chart) */
+.trend-chart { width: 100%; height: 140px; position: relative; }
+.trend-canvas { width: 100%; height: 100%; }
+
+/* Toolbar */
+.toolbar {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.search-box {
+  flex: 1; min-width: 200px;
+  position: relative;
+}
+.search-box input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.65rem 1rem 0.65rem 2.5rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: all var(--transition);
+  outline: none;
+}
+.search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.search-box input::placeholder { color: var(--text-muted); }
+.search-icon {
+  position: absolute; left: 0.8rem; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted); font-size: 0.9rem;
+}
+
+select, .btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+  outline: none;
+}
+select:focus, .btn:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+select option { background: var(--bg-secondary); }
+
+.btn { font-weight: 500; display: inline-flex; align-items: center; gap: 0.4rem; }
+.btn:hover { background: var(--bg-hover); border-color: var(--border-hover); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { color: var(--danger); }
+.btn-danger:hover { background: rgba(239,68,68,0.1); border-color: var(--danger); }
+.btn-sm { padding: 0.35rem 0.75rem; font-size: 0.78rem; }
+.btn-icon { padding: 0.5rem; min-width: 36px; justify-content: center; }
+
+/* Memory Table */
+.memory-table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.memory-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.memory-table th {
+  background: var(--bg-secondary);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+}
+.memory-table td {
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(42,58,82,0.5);
+  vertical-align: top;
+}
+.memory-table tr:hover td { background: var(--bg-hover); }
+.memory-table tr { cursor: pointer; transition: background var(--transition); }
+
+.mem-text {
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+.mem-id {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Tags / Badges */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border: 1px solid;
+}
+.badge-scope { color: var(--info); border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.08); }
+.badge-category { color: #a78bfa; border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.08); }
+.badge-core { color: var(--success); border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.08); }
+.badge-working { color: var(--info); border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.08); }
+.badge-peripheral { color: var(--warning); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+
+/* Importance bar */
+.importance-bar { display: flex; align-items: center; gap: 0.4rem; }
+.importance-track { width: 50px; height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
+.importance-fill { height: 100%; border-radius: 2px; transition: width var(--transition); }
+
+/* Pagination */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem; color: var(--text-secondary);
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  animation: fadeIn 0.2s ease;
+}
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: 90%; max-width: 640px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: modalIn 0.3s ease;
+}
+@keyframes modalIn { from { opacity: 0; transform: scale(0.95); } }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 1.05rem; font-weight: 600; }
+.modal-close {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 1.2rem; cursor: pointer; padding: 0.25rem;
+  transition: color var(--transition);
+}
+.modal-close:hover { color: var(--text-primary); }
+.modal-body { padding: 1.5rem; }
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 0.5rem; justify-content: flex-end;
+}
+
+/* Form Fields */
+.field { margin-bottom: 1rem; }
+.field label {
+  display: block; font-size: 0.8rem; font-weight: 500;
+  color: var(--text-secondary); margin-bottom: 0.35rem;
+}
+.field input, .field textarea, .field select {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  transition: all var(--transition);
+  outline: none;
+}
+.field input:focus, .field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.field textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+
+/* Actions page */
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+.action-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  transition: all var(--transition);
+}
+.action-card:hover { border-color: var(--border-hover); }
+.action-card h3 {
+  font-size: 1rem; font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.action-card p { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5; }
+.action-result {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+}
+.action-result.visible { display: block; }
+
+/* Cron Logs */
+.log-list { display: flex; flex-direction: column; gap: 2px; }
+.log-entry {
+  display: flex; gap: 0.75rem; align-items: flex-start;
+  padding: 0.6rem 1rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  border: 1px solid transparent;
+  transition: border-color var(--transition);
+}
+.log-entry:hover { border-color: var(--border); }
+.log-time { font-family: monospace; color: var(--text-muted); min-width: 160px; font-size: 0.75rem; }
+.log-task {
+  font-weight: 600; min-width: 100px;
+  color: var(--accent-hover);
+  font-size: 0.78rem;
+}
+.log-msg { color: var(--text-secondary); flex: 1; }
+.log-entry.error .log-msg { color: var(--danger); }
+.log-empty {
+  text-align: center; padding: 3rem;
+  color: var(--text-muted); font-size: 0.9rem;
+}
+
+/* Toast */
+.toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 300; display: flex; flex-direction: column; gap: 0.5rem; }
+.toast {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-lg);
+  animation: slideIn 0.3s ease;
+  display: flex; align-items: center; gap: 0.5rem;
+  max-width: 360px;
+}
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--danger); }
+.toast.info { border-left: 3px solid var(--info); }
+@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } }
+
+/* Loading spinner */
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-full {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 4rem; color: var(--text-muted); gap: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header { padding: 0 1rem; }
+  .nav { padding: 0 0.5rem; }
+  .main { padding: 1rem; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .toolbar { flex-direction: column; }
+  .search-box { min-width: 100%; }
+  .memory-table { font-size: 0.8rem; }
+  .memory-table th:nth-child(n+4), .memory-table td:nth-child(n+4) { display: none; }
+}
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  html { font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="logo">🧠</div>
+      <span>Universal Memory</span>
+      <span class="header-version">v0.3</span>
+    </div>
+    <div class="header-status">
+      <span class="status-dot"></span>
+      <span id="header-status-text">连接中...</span>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <button class="nav-btn active" data-page="dashboard" id="nav-dashboard">📊 仪表板</button>
+    <button class="nav-btn" data-page="memories" id="nav-memories">🔍 记忆管理</button>
+    <button class="nav-btn" data-page="actions" id="nav-actions">⚙️ 维护操作</button>
+    <button class="nav-btn" data-page="logs" id="nav-logs">📋 任务日志</button>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Dashboard Page -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="stats-cards">
+        <div class="stat-card">
+          <div class="stat-label">总记忆数</div>
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-sub" id="stat-total-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Scope 数量</div>
+          <div class="stat-value" id="stat-scopes">—</div>
+          <div class="stat-sub" id="stat-scopes-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">分类数量</div>
+          <div class="stat-value" id="stat-categories">—</div>
+          <div class="stat-sub" id="stat-categories-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">核心记忆</div>
+          <div class="stat-value" id="stat-core">—</div>
+          <div class="stat-sub" id="stat-core-sub"></div>
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">按 Scope 分布</div>
+          <div class="chart-bars" id="chart-scope"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">按 Category 分布</div>
+          <div class="chart-bars" id="chart-category"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">按 Tier 分布</div>
+          <div class="chart-bars" id="chart-tier"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">记忆增长趋势 (30天)</div>
+          <div class="trend-chart">
+            <canvas class="trend-canvas" id="trend-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Memories Page -->
+    <div class="page" id="page-memories">
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="搜索记忆 (语义搜索 + 全文检索)...">
+        </div>
+        <select id="filter-scope">
+          <option value="">全部 Scope</option>
+        </select>
+        <select id="filter-category">
+          <option value="">全部分类</option>
+        </select>
+        <button class="btn" id="btn-refresh-list" title="刷新">🔄 刷新</button>
+      </div>
+      <div class="memory-table-wrap">
+        <table class="memory-table">
+          <thead>
+            <tr>
+              <th style="width:80px">ID</th>
+              <th>内容</th>
+              <th style="width:100px">分类</th>
+              <th style="width:120px">Scope</th>
+              <th style="width:80px">重要度</th>
+              <th style="width:140px">时间</th>
+              <th style="width:80px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="memory-tbody"></tbody>
+        </table>
+        <div class="pagination" id="pagination">
+          <span id="page-info">— 条记忆</span>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn btn-sm" id="btn-prev" disabled>← 上一页</button>
+            <button class="btn btn-sm" id="btn-next">下一页 →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions Page -->
+    <div class="page" id="page-actions">
+      <div class="action-grid">
+        <div class="action-card">
+          <h3>🗜️ Compact 压缩</h3>
+          <p>扫描并归档重复的低价值记忆，减少噪音提升检索质量。</p>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn" id="btn-compact-preview">预览</button>
+            <button class="btn btn-primary" id="btn-compact-apply">执行压缩</button>
+          </div>
+          <div class="action-result" id="compact-result"></div>
+        </div>
+        <div class="action-card">
+          <h3>🔧 Reindex 重建索引</h3>
+          <p>重建全文搜索 (FTS) 索引。当搜索结果异常时使用。</p>
+          <button class="btn btn-primary" id="btn-reindex">重建索引</button>
+          <div class="action-result" id="reindex-result"></div>
+        </div>
+        <div class="action-card">
+          <h3>📦 Export 导出</h3>
+          <p>将所有记忆导出为 JSON 文件，用于备份或迁移。</p>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <select id="export-scope" style="flex:1;min-width:120px">
+              <option value="">全部 Scope</option>
+            </select>
+            <button class="btn btn-primary" id="btn-export">下载 JSON</button>
+          </div>
+          <div class="action-result" id="export-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs Page -->
+    <div class="page" id="page-logs">
+      <div class="toolbar">
+        <h2 style="font-size:1.1rem;font-weight:600;flex:1">定时任务执行日志</h2>
+        <button class="btn" id="btn-refresh-logs">🔄 刷新</button>
+      </div>
+      <div class="log-list" id="log-list">
+        <div class="log-empty">暂无日志记录</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Memory Detail Modal -->
+<div class="modal-overlay" id="modal-overlay" style="display:none">
+  <div class="modal" id="modal-detail">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">记忆详情</span>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// Universal Memory Dashboard — Client
+// ============================================================================
+
+const API = '/api';
+let currentPage = 'dashboard';
+let memoryOffset = 0;
+const PAGE_SIZE = 20;
+let statsCache = null;
+
+// ---- API Helpers ----
+
+async function api(path, opts = {}) {
+  const url = API + path;
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || res.statusText);
+  }
+  return res;
+}
+
+async function apiJson(path, opts) {
+  const res = await api(path, opts);
+  return res.json();
+}
+
+// ---- Toast ----
+
+function toast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+// ---- Navigation ----
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const page = btn.dataset.page;
+    navigateTo(page);
+  });
+});
+
+function navigateTo(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === `page-${page}`));
+
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'memories') loadMemories();
+  if (page === 'logs') loadLogs();
+}
+
+// ---- Dashboard ----
+
+async function loadDashboard() {
+  try {
+    const stats = await apiJson('/stats');
+    statsCache = stats;
+    document.getElementById('header-status-text').textContent = `${stats.totalCount} 条记忆`;
+
+    // Stats cards
+    document.getElementById('stat-total').textContent = stats.totalCount;
+    const scopes = Object.keys(stats.scopeCounts);
+    document.getElementById('stat-scopes').textContent = scopes.length;
+    document.getElementById('stat-scopes-sub').textContent = scopes.slice(0, 3).join(', ') + (scopes.length > 3 ? '...' : '');
+    const cats = Object.keys(stats.categoryCounts);
+    document.getElementById('stat-categories').textContent = cats.length;
+    document.getElementById('stat-categories-sub').textContent = cats.join(', ');
+    const coreCount = stats.tierCounts?.core || 0;
+    document.getElementById('stat-core').textContent = coreCount;
+    document.getElementById('stat-core-sub').textContent = `Working: ${stats.tierCounts?.working || 0} / Peripheral: ${stats.tierCounts?.peripheral || 0}`;
+
+    // Charts
+    renderBarChart('chart-scope', stats.scopeCounts, stats.totalCount, scopeColors);
+    renderBarChart('chart-category', stats.categoryCounts, stats.totalCount, categoryColors);
+    renderBarChart('chart-tier', stats.tierCounts || {}, stats.totalCount, tierColors);
+
+    // Trend
+    renderTrendChart(stats.dailyCounts || {});
+
+    // Populate filter dropdowns
+    populateFilters(stats);
+
+  } catch (err) {
+    document.getElementById('header-status-text').textContent = '连接失败';
+    toast('加载统计数据失败: ' + err.message, 'error');
+  }
+}
+
+const scopeColors = ['#6366f1','#8b5cf6','#3b82f6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'];
+const categoryColors = ['#a78bfa','#67e8f9','#86efac','#fbbf24','#fca5a5','#f9a8d4'];
+const tierColors = { core: '#22c55e', working: '#3b82f6', peripheral: '#f59e0b' };
+
+function renderBarChart(containerId, counts, total, colors) {
+  const container = document.getElementById(containerId);
+  if (!container || !counts) return;
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;padding:1rem;text-align:center">暂无数据</div>';
+    return;
+  }
+  const maxVal = Math.max(...entries.map(e => e[1]));
+
+  container.innerHTML = entries.map(([name, count], i) => {
+    const pct = maxVal > 0 ? (count / maxVal) * 100 : 0;
+    const color = typeof colors === 'object' && !Array.isArray(colors) ? (colors[name] || '#6366f1') : (colors[i % colors.length]);
+    return `
+      <div class="chart-bar-row">
+        <span class="chart-bar-label">${name}</span>
+        <div class="chart-bar-track">
+          <div class="chart-bar-fill" style="width:${pct}%;background:${color}">${count}</div>
+        </div>
+        <span class="chart-bar-count">${total > 0 ? Math.round(count/total*100) : 0}%</span>
+      </div>`;
+  }).join('');
+}
+
+function renderTrendChart(dailyCounts) {
+  const canvas = document.getElementById('trend-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * 2;
+  canvas.height = rect.height * 2;
+  ctx.scale(2, 2);
+  const w = rect.width;
+  const h = rect.height;
+
+  // Last 30 days
+  const days = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+
+  const values = days.map(d => dailyCounts[d] || 0);
+  const maxVal = Math.max(...values, 1);
+
+  // Draw gradient area
+  const padL = 35, padR = 10, padT = 10, padB = 25;
+  const chartW = w - padL - padR;
+  const chartH = h - padT - padB;
+
+  const grad = ctx.createLinearGradient(0, padT, 0, h - padB);
+  grad.addColorStop(0, 'rgba(99,102,241,0.3)');
+  grad.addColorStop(1, 'rgba(99,102,241,0.02)');
+
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + chartH);
+
+  for (let i = 0; i < values.length; i++) {
+    const x = padL + (i / (values.length - 1)) * chartW;
+    const y = padT + chartH - (values[i] / maxVal) * chartH;
+    if (i === 0) ctx.lineTo(x, y);
+    else {
+      const prevX = padL + ((i - 1) / (values.length - 1)) * chartW;
+      const prevY = padT + chartH - (values[i - 1] / maxVal) * chartH;
+      const cpx = (prevX + x) / 2;
+      ctx.bezierCurveTo(cpx, prevY, cpx, y, x, y);
+    }
+  }
+  ctx.lineTo(padL + chartW, padT + chartH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Draw line
+  ctx.beginPath();
+  for (let i = 0; i < values.length; i++) {
+    const x = padL + (i / (values.length - 1)) * chartW;
+    const y = padT + chartH - (values[i] / maxVal) * chartH;
+    if (i === 0) ctx.moveTo(x, y);
+    else {
+      const prevX = padL + ((i - 1) / (values.length - 1)) * chartW;
+      const prevY = padT + chartH - (values[i - 1] / maxVal) * chartH;
+      const cpx = (prevX + x) / 2;
+      ctx.bezierCurveTo(cpx, prevY, cpx, y, x, y);
+    }
+  }
+  ctx.strokeStyle = '#6366f1';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Draw dots for last 7 days
+  for (let i = values.length - 7; i < values.length; i++) {
+    if (i < 0) continue;
+    const x = padL + (i / (values.length - 1)) * chartW;
+    const y = padT + chartH - (values[i] / maxVal) * chartH;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#6366f1';
+    ctx.fill();
+    ctx.strokeStyle = '#1a2233';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Y-axis labels
+  ctx.fillStyle = '#5a6f8f';
+  ctx.font = '10px Inter, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(maxVal.toString(), padL - 5, padT + 10);
+  ctx.fillText('0', padL - 5, padT + chartH + 4);
+
+  // X-axis labels (first, mid, last)
+  ctx.textAlign = 'center';
+  ctx.fillText(days[0].slice(5), padL, h - 5);
+  ctx.fillText(days[14].slice(5), padL + chartW / 2, h - 5);
+  ctx.fillText(days[29].slice(5), padL + chartW, h - 5);
+}
+
+function populateFilters(stats) {
+  const scopeSel = document.getElementById('filter-scope');
+  const exportScopeSel = document.getElementById('export-scope');
+  const catSel = document.getElementById('filter-category');
+  const scopes = Object.keys(stats.scopeCounts || {}).sort();
+  const cats = Object.keys(stats.categoryCounts || {}).sort();
+
+  // Scope
+  [scopeSel, exportScopeSel].forEach(sel => {
+    if (!sel) return;
+    const val = sel.value;
+    sel.innerHTML = '<option value="">全部 Scope</option>';
+    scopes.forEach(s => { sel.innerHTML += `<option value="${s}">${s}</option>`; });
+    sel.value = val;
+  });
+
+  // Category
+  if (catSel) {
+    const val = catSel.value;
+    catSel.innerHTML = '<option value="">全部分类</option>';
+    cats.forEach(c => { catSel.innerHTML += `<option value="${c}">${c}</option>`; });
+    catSel.value = val;
+  }
+}
+
+// ---- Memories ----
+
+async function loadMemories() {
+  const search = document.getElementById('search-input').value.trim();
+  const scope = document.getElementById('filter-scope').value;
+  const category = document.getElementById('filter-category').value;
+  const tbody = document.getElementById('memory-tbody');
+
+  tbody.innerHTML = '<tr><td colspan="7"><div class="loading-full"><div class="spinner"></div>加载中...</div></td></tr>';
+
+  try {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (scope) params.set('scope', scope);
+    if (category) params.set('category', category);
+    params.set('limit', PAGE_SIZE);
+    params.set('offset', memoryOffset);
+
+    const data = await apiJson(`/memories?${params}`);
+    renderMemoryTable(data);
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--danger)">${err.message}</td></tr>`;
+  }
+}
+
+function renderMemoryTable(data) {
+  const tbody = document.getElementById('memory-tbody');
+  const { memories, count, total, offset } = data;
+
+  if (!memories || memories.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">没有找到记忆</td></tr>';
+    document.getElementById('page-info').textContent = '0 条记忆';
+    return;
+  }
+
+  tbody.innerHTML = memories.map(m => {
+    const shortId = m.id.slice(0, 8);
+    const preview = m.text.length > 80 ? m.text.slice(0, 77) + '...' : m.text;
+    const time = new Date(m.timestamp).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const imp = (m.importance || 0);
+    const impColor = imp >= 0.8 ? 'var(--success)' : imp >= 0.5 ? 'var(--warning)' : 'var(--text-muted)';
+    const score = m.score !== undefined ? `<span style="color:var(--accent);font-size:0.72rem;margin-left:4px">(${m.score.toFixed(2)})</span>` : '';
+
+    // Parse tier from metadata
+    let tier = 'working';
+    try {
+      const meta = JSON.parse(m.metadata || '{}');
+      tier = meta.tier || meta.memory_layer || 'working';
+    } catch {}
+
+    return `
+      <tr onclick="openMemory('${m.id}')">
+        <td><span class="mem-id">${shortId}</span></td>
+        <td><span class="mem-text">${escapeHtml(preview)}</span>${score}</td>
+        <td><span class="badge badge-category">${m.category}</span></td>
+        <td><span class="badge badge-scope">${m.scope}</span></td>
+        <td>
+          <div class="importance-bar">
+            <div class="importance-track"><div class="importance-fill" style="width:${imp*100}%;background:${impColor}"></div></div>
+            <span style="font-size:0.75rem;color:var(--text-muted)">${imp.toFixed(1)}</span>
+          </div>
+        </td>
+        <td style="font-size:0.78rem;color:var(--text-secondary)">${time}</td>
+        <td>
+          <button class="btn btn-sm btn-danger btn-icon" onclick="event.stopPropagation();deleteMemory('${m.id}')" title="删除">🗑</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  // Pagination
+  const totalShown = offset + memories.length;
+  document.getElementById('page-info').textContent = `${offset + 1}–${totalShown} / 共 ${total} 条`;
+  document.getElementById('btn-prev').disabled = offset === 0;
+  document.getElementById('btn-next').disabled = totalShown >= total;
+}
+
+// Pagination
+document.getElementById('btn-prev').addEventListener('click', () => {
+  memoryOffset = Math.max(0, memoryOffset - PAGE_SIZE);
+  loadMemories();
+});
+document.getElementById('btn-next').addEventListener('click', () => {
+  memoryOffset += PAGE_SIZE;
+  loadMemories();
+});
+
+// Search debounce
+let searchTimer;
+document.getElementById('search-input').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  memoryOffset = 0;
+  searchTimer = setTimeout(loadMemories, 400);
+});
+
+// Filters
+document.getElementById('filter-scope').addEventListener('change', () => { memoryOffset = 0; loadMemories(); });
+document.getElementById('filter-category').addEventListener('change', () => { memoryOffset = 0; loadMemories(); });
+document.getElementById('btn-refresh-list').addEventListener('click', loadMemories);
+
+// ---- Memory Detail Modal ----
+
+async function openMemory(id) {
+  const overlay = document.getElementById('modal-overlay');
+  const body = document.getElementById('modal-body');
+  const footer = document.getElementById('modal-footer');
+  document.getElementById('modal-title').textContent = '记忆详情';
+
+  body.innerHTML = '<div class="loading-full"><div class="spinner"></div></div>';
+  footer.innerHTML = '';
+  overlay.style.display = 'flex';
+
+  try {
+    const mem = await apiJson(`/memories/${id}`);
+    let meta = {};
+    try { meta = JSON.parse(mem.metadata || '{}'); } catch {}
+
+    body.innerHTML = `
+      <div class="field">
+        <label>ID</label>
+        <input type="text" value="${mem.id}" readonly style="opacity:0.6;cursor:default">
+      </div>
+      <div class="field">
+        <label>内容</label>
+        <textarea id="edit-text">${escapeHtml(mem.text)}</textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="field">
+          <label>分类</label>
+          <select id="edit-category">
+            ${['preference','fact','decision','entity','reflection','other'].map(c => `<option value="${c}" ${c === mem.category ? 'selected' : ''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>重要度</label>
+          <input type="number" id="edit-importance" min="0" max="1" step="0.1" value="${mem.importance}">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div class="field">
+          <label>Scope</label>
+          <input type="text" value="${mem.scope}" readonly style="opacity:0.6;cursor:default">
+        </div>
+        <div class="field">
+          <label>创建时间</label>
+          <input type="text" value="${new Date(mem.timestamp).toLocaleString('zh-CN')}" readonly style="opacity:0.6;cursor:default">
+        </div>
+      </div>
+      ${Object.keys(meta).length > 0 ? `
+        <div class="field">
+          <label>元数据</label>
+          <textarea readonly style="opacity:0.7;font-size:0.78rem;min-height:80px;font-family:monospace">${JSON.stringify(meta, null, 2)}</textarea>
+        </div>
+      ` : ''}
+    `;
+
+    footer.innerHTML = `
+      <button class="btn btn-danger" onclick="archiveMemory('${id}')">📦 归档</button>
+      <button class="btn btn-danger" onclick="deleteMemory('${id}');closeModal()">🗑 删除</button>
+      <button class="btn btn-primary" onclick="saveMemory('${id}')">💾 保存</button>
+    `;
+  } catch (err) {
+    body.innerHTML = `<div style="color:var(--danger);padding:1rem">${err.message}</div>`;
+  }
+}
+
+async function saveMemory(id) {
+  const text = document.getElementById('edit-text').value;
+  const category = document.getElementById('edit-category').value;
+  const importance = parseFloat(document.getElementById('edit-importance').value);
+
+  try {
+    await apiJson(`/memories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ text, category, importance }),
+    });
+    toast('记忆已更新', 'success');
+    closeModal();
+    loadMemories();
+  } catch (err) {
+    toast('更新失败: ' + err.message, 'error');
+  }
+}
+
+async function deleteMemory(id) {
+  if (!confirm('确定要删除这条记忆吗？此操作不可逆。')) return;
+  try {
+    await apiJson(`/memories/${id}`, { method: 'DELETE' });
+    toast('记忆已删除', 'success');
+    closeModal();
+    loadMemories();
+  } catch (err) {
+    toast('删除失败: ' + err.message, 'error');
+  }
+}
+
+async function archiveMemory(id) {
+  try {
+    await apiJson(`/memories/${id}/archive`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: 'manual_archive' }),
+    });
+    toast('记忆已归档', 'success');
+    closeModal();
+    loadMemories();
+  } catch (err) {
+    toast('归档失败: ' + err.message, 'error');
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+}
+
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+// ---- Actions ----
+
+document.getElementById('btn-compact-preview').addEventListener('click', async () => {
+  const el = document.getElementById('compact-result');
+  el.classList.add('visible');
+  el.textContent = '扫描中...';
+  try {
+    const data = await apiJson('/actions/compact', {
+      method: 'POST',
+      body: JSON.stringify({ dryRun: true }),
+    });
+    el.textContent = `扫描 ${data.scanned} 条记忆\n发现 ${data.duplicates} 个重复项`;
+    toast(`预览完成: ${data.duplicates} 个重复`, 'info');
+  } catch (err) {
+    el.textContent = '错误: ' + err.message;
+    toast('Compact 预览失败', 'error');
+  }
+});
+
+document.getElementById('btn-compact-apply').addEventListener('click', async () => {
+  if (!confirm('确定执行 Compact？将归档重复记忆。')) return;
+  const el = document.getElementById('compact-result');
+  el.classList.add('visible');
+  el.textContent = '执行中...';
+  try {
+    const data = await apiJson('/actions/compact', {
+      method: 'POST',
+      body: JSON.stringify({ dryRun: false }),
+    });
+    el.textContent = `已归档 ${data.archived} 个重复项 (扫描 ${data.scanned} 条)`;
+    toast(`Compact 完成: 归档 ${data.archived} 条`, 'success');
+  } catch (err) {
+    el.textContent = '错误: ' + err.message;
+    toast('Compact 失败', 'error');
+  }
+});
+
+document.getElementById('btn-reindex').addEventListener('click', async () => {
+  const el = document.getElementById('reindex-result');
+  el.classList.add('visible');
+  el.textContent = '重建索引中...';
+  try {
+    const data = await apiJson('/actions/reindex', { method: 'POST' });
+    el.textContent = `结果: ${data.success ? '✅ 成功' : '❌ 失败'}${data.error ? '\n错误: ' + data.error : ''}`;
+    toast(data.success ? 'Reindex 成功' : 'Reindex 失败', data.success ? 'success' : 'error');
+  } catch (err) {
+    el.textContent = '错误: ' + err.message;
+    toast('Reindex 失败', 'error');
+  }
+});
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const scope = document.getElementById('export-scope').value;
+  const params = new URLSearchParams();
+  if (scope) params.set('scope', scope);
+  params.set('limit', '5000');
+  window.open(`${API}/actions/export?${params}`, '_blank');
+  toast('导出已开始', 'info');
+});
+
+// ---- Logs ----
+
+async function loadLogs() {
+  const container = document.getElementById('log-list');
+  container.innerHTML = '<div class="loading-full"><div class="spinner"></div></div>';
+
+  try {
+    const data = await apiJson('/cron/logs?limit=100');
+    if (!data.logs || data.logs.length === 0) {
+      container.innerHTML = '<div class="log-empty">暂无日志记录。定时任务执行后将在此处显示。</div>';
+      return;
+    }
+
+    container.innerHTML = data.logs.map(l => `
+      <div class="log-entry ${l.level === 'error' ? 'error' : ''}">
+        <span class="log-time">${new Date(l.timestamp).toLocaleString('zh-CN')}</span>
+        <span class="log-task">${l.task}</span>
+        <span class="log-msg">${escapeHtml(l.message)}</span>
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = `<div class="log-empty" style="color:var(--danger)">${err.message}</div>`;
+  }
+}
+
+document.getElementById('btn-refresh-logs').addEventListener('click', loadLogs);
+
+// ---- Utilities ----
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ---- Init ----
+
+loadDashboard();
+</script>
+</body>
+</html>

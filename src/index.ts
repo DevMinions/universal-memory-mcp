@@ -6,6 +6,8 @@ import { randomUUID } from "node:crypto";
 import { createMemoryCoreFromEnv } from "./core/index.js";
 import { loadConfig } from "./core/config-loader.js";
 import { startScheduler, stopScheduler, type CronConfig, DEFAULT_CRON_CONFIG } from "./cron/scheduler.js";
+import { handleApiRequest } from "./web/api.js";
+import { serveDashboard } from "./web/static-server.js";
 import { registerRecallTool } from "./tools/recall.js";
 import { registerStoreTool } from "./tools/store.js";
 import { registerDeleteTool } from "./tools/delete.js";
@@ -30,7 +32,7 @@ import type { MemoryCore } from "./core/index.js";
 function createMcpServer(): { server: McpServer; core: MemoryCore } {
   const server = new McpServer({
     name: "universal-memory",
-    version: "0.2.0",
+    version: "0.3.0",
   });
 
   // Initialize core
@@ -62,7 +64,7 @@ function createMcpServer(): { server: McpServer; core: MemoryCore } {
         text: JSON.stringify({
           status: "ok",
           server: "universal-memory-mcp",
-          version: "0.2.0",
+          version: "0.3.0",
           tools: TOOL_COUNT,
           mode: process.env.MCP_MODE || "stdio",
           timestamp: new Date().toISOString(),
@@ -105,6 +107,9 @@ async function runHttp() {
   const { core } = createMcpServer();
   startScheduler(core, cronConfig);
 
+  // Web Dashboard API context
+  const apiCtx = { core };
+
   // Track active transports by session ID
   const transports = new Map<string, StreamableHTTPServerTransport>();
 
@@ -123,13 +128,24 @@ async function runHttp() {
       return;
     }
 
+    // Web Dashboard — serve at root
+    if (serveDashboard(req, res, url)) {
+      return;
+    }
+
+    // REST API for Web Dashboard
+    if (url.pathname.startsWith("/api/")) {
+      const handled = await handleApiRequest(req, res, url, apiCtx);
+      if (handled) return;
+    }
+
     // Health check endpoint
     if (url.pathname === "/health") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
         status: "ok",
         server: "universal-memory-mcp",
-        version: "0.2.0",
+        version: "0.3.0",
         tools: TOOL_COUNT,
         mode: "http",
         activeSessions: transports.size,
@@ -198,6 +214,8 @@ async function runHttp() {
     res.end(JSON.stringify({
       error: "Not found",
       endpoints: {
+        dashboard: "/ (GET: Web Dashboard)",
+        api: "/api/* (REST API for dashboard)",
         mcp: "/mcp (POST: JSON-RPC, GET: SSE stream)",
         health: "/health (GET: health check)",
       },
@@ -205,9 +223,11 @@ async function runHttp() {
   });
 
   httpServer.listen(port, host, () => {
-    console.error(`Universal Memory MCP Server running on http://${host}:${port}/mcp (${TOOL_COUNT} tools registered)`);
-    console.error(`Health check: http://${host}:${port}/health`);
-    console.error(`Mode: Streamable HTTP (SSE + POST)`);
+    console.error(`Universal Memory MCP Server v0.3.0 running on http://${host}:${port}`);
+    console.error(`📊 Dashboard: http://${host}:${port}/`);
+    console.error(`🔌 MCP endpoint: http://${host}:${port}/mcp`);
+    console.error(`❤️  Health check: http://${host}:${port}/health`);
+    console.error(`Mode: Streamable HTTP (SSE + POST) | ${TOOL_COUNT} tools registered`);
   });
 
   // Graceful shutdown

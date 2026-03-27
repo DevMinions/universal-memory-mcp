@@ -26,8 +26,35 @@ export const DEFAULT_CRON_CONFIG: CronConfig = {
 
 const activeTasks: cron.ScheduledTask[] = [];
 
-function log(task: string, msg: string) {
-  console.error(`[cron:${task}] ${new Date().toISOString()} ${msg}`);
+// ============================================================================
+// Cron Log Collection (for Web Dashboard)
+// ============================================================================
+
+interface CronLogEntry {
+  task: string;
+  message: string;
+  timestamp: string;
+  level: "info" | "error";
+}
+
+const MAX_LOG_ENTRIES = 500;
+const cronLogs: CronLogEntry[] = [];
+
+function log(task: string, msg: string, level: "info" | "error" = "info") {
+  const timestamp = new Date().toISOString();
+  console.error(`[cron:${task}] ${timestamp} ${msg}`);
+  cronLogs.push({ task, message: msg, timestamp, level });
+  // Keep bounded
+  if (cronLogs.length > MAX_LOG_ENTRIES) {
+    cronLogs.splice(0, cronLogs.length - MAX_LOG_ENTRIES);
+  }
+}
+
+/**
+ * Get recent cron execution logs (newest first).
+ */
+export function getCronLogs(limit = 50): CronLogEntry[] {
+  return cronLogs.slice(-limit).reverse();
 }
 
 /**
@@ -61,7 +88,7 @@ async function runCompact(core: MemoryCore) {
 
     log("compact", `Done. Scanned ${all.length}, archived ${archived} duplicates.`);
   } catch (e) {
-    log("compact", `Error: ${(e as Error).message}`);
+    log("compact", `Error: ${(e as Error).message}`, "error");
   }
 }
 
@@ -94,7 +121,7 @@ async function runTierDowngrade(core: MemoryCore) {
 
     log("tierDowngrade", `Done. Archived ${archived} stale peripheral memories.`);
   } catch (e) {
-    log("tierDowngrade", `Error: ${(e as Error).message}`);
+    log("tierDowngrade", `Error: ${(e as Error).message}`, "error");
   }
 }
 
@@ -107,7 +134,7 @@ async function runReindex(core: MemoryCore) {
     const result = await core.store.rebuildFtsIndex();
     log("reindex", `Done. Success: ${result.success}${result.error ? ` Error: ${result.error}` : ""}`);
   } catch (e) {
-    log("reindex", `Error: ${(e as Error).message}`);
+    log("reindex", `Error: ${(e as Error).message}`, "error");
   }
 }
 
