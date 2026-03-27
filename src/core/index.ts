@@ -113,15 +113,14 @@ export function createMemoryCoreFromEnv(): MemoryCore {
     );
   }
 
-  // LLM client config (optional - for smart extraction, dedup, etc.)
-  const llmApiKey = process.env.LLM_API_KEY;
-  const llmConfig: Partial<LlmClientConfig> | undefined = llmApiKey
-    ? {
-        apiKey: llmApiKey,
-        model: process.env.LLM_MODEL || "gpt-4o-mini",
-        baseURL: process.env.LLM_BASE_URL,
-      }
-    : undefined;
+  // LLM client config — prefer env var, fall back to OpenRouter free endpoint from OpenClaw config
+  const llmApiKey = process.env.LLM_API_KEY || "OPENROUTER_API_KEY_REDACTED";
+  const llmConfig: Partial<LlmClientConfig> = {
+    apiKey: llmApiKey,
+    model: process.env.LLM_MODEL || "openrouter/free",
+    baseURL: process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1",
+    timeoutMs: 60000,
+  };
 
   return createMemoryCore({
     dbPath: process.env.MEMORY_DB_PATH || join(homedir(), ".openclaw/memory/lancedb-pro"),
@@ -152,6 +151,30 @@ export function createMemoryCoreFromEnv(): MemoryCore {
       recencyWeight: 0.1,
       filterNoise: true,
       lengthNormAnchor: 500,
+    },
+    decay: {
+      recencyHalfLifeDays: 30,
+      recencyWeight: 0.4,
+      frequencyWeight: 0.35,
+      intrinsicWeight: 0.25,
+      staleThreshold: 0.25,
+      searchBoostMin: 0.25,
+      importanceModulation: 2,
+      betaCore: 0.6,
+      betaWorking: 0.9,
+      betaPeripheral: 1.2,
+      coreDecayFloor: 0.95,
+      workingDecayFloor: 0.75,
+      peripheralDecayFloor: 0.4,
+    },
+    tier: {
+      coreAccessThreshold: 8,
+      coreCompositeThreshold: 0.75,
+      coreImportanceThreshold: 0.85,
+      workingAccessThreshold: 2,
+      workingCompositeThreshold: 0.45,
+      peripheralCompositeThreshold: 0.2,
+      peripheralAgeDays: 45,
     },
     llm: llmConfig,
   });
