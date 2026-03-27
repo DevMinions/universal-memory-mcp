@@ -8,13 +8,10 @@ services:
     environment:
       - MCP_MODE=http
       - MCP_PORT=3100
-      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}       # 必须：认证密码
-      - JINA_API_KEY=${JINA_API_KEY}           # 必须：嵌入 + rerank
-      - LLM_API_KEY=${LLM_API_KEY:-}           # 可选：LLM 智能提取
-      - LLM_MODEL=${LLM_MODEL:-openrouter/free}
-      - LLM_BASE_URL=${LLM_BASE_URL:-https://openrouter.ai/api/v1}
-      - MEMORY_DB_PATH=/data/lancedb-pro
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN}
+      - MCP_CONFIG_PATH=/app/config.json
     volumes:
+      - ./config.json:/app/config.json:ro
       - memory-data:/data/lancedb-pro
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3100/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]

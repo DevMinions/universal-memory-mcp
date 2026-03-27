@@ -1,5 +1,5 @@
-
-> universal-memory-mcp@0.1.0 build
-> tsc
-
+[master ba1dab2] feat(config): externalize all config to JSON file with env var override
+ 4 files changed, 359 insertions(+), 82 deletions(-)
+ create mode 100644 config.default.json
+ create mode 100644 src/core/config-loader.ts
 ===AGENT COMMAND DONE===
