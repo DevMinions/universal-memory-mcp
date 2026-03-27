@@ -1,5 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { createMemoryCoreFromEnv } from "./core/index.js";
 import { registerRecallTool } from "./tools/recall.js";
 import { registerStoreTool } from "./tools/store.js";
@@ -18,52 +21,202 @@ import { registerCompactTool } from "./tools/compact.js";
 import { registerExplainRankTool } from "./tools/explain-rank.js";
 import { registerSelfImprovementTools } from "./tools/self-improvement.js";
 
-const server = new McpServer({
-  name: "universal-memory",
-  version: "0.1.0",
-});
+const TOOL_COUNT = 18;
 
-// Initialize core
-const core = createMemoryCoreFromEnv();
+function createMcpServer(): McpServer {
+  const server = new McpServer({
+    name: "universal-memory",
+    version: "0.2.0",
+  });
 
-// Register all tools
-registerRecallTool(server, core);
-registerStoreTool(server, core);
-registerDeleteTool(server, core);
-registerUpdateTool(server, core);
-registerForgetTool(server, core);
-registerStatsTool(server, core);
-registerListTool(server, core);
-registerReindexTool(server, core);
-registerExportTool(server, core);
-registerExtractTool(server, core);
-registerArchiveTool(server, core);
-registerPromoteTool(server, core);
-registerReflectTool(server, core);
-registerCompactTool(server, core);
-registerExplainRankTool(server, core);
-registerSelfImprovementTools(server, core);
+  // Initialize core
+  const core = createMemoryCoreFromEnv();
 
-// Ping tool for connectivity testing
-server.tool("memory_ping", "Test connectivity to Universal Memory MCP Server", {}, async () => ({
-  content: [
-    {
-      type: "text" as const,
-      text: JSON.stringify({
-        status: "ok",
-        server: "universal-memory-mcp",
-        version: "0.1.0",
-        tools: 18,
-        timestamp: new Date().toISOString(),
-      }),
-    },
-  ],
-}));
+  // Register all tools
+  registerRecallTool(server, core);
+  registerStoreTool(server, core);
+  registerDeleteTool(server, core);
+  registerUpdateTool(server, core);
+  registerForgetTool(server, core);
+  registerStatsTool(server, core);
+  registerListTool(server, core);
+  registerReindexTool(server, core);
+  registerExportTool(server, core);
+  registerExtractTool(server, core);
+  registerArchiveTool(server, core);
+  registerPromoteTool(server, core);
+  registerReflectTool(server, core);
+  registerCompactTool(server, core);
+  registerExplainRankTool(server, core);
+  registerSelfImprovementTools(server, core);
 
-async function main() {
+  // Ping tool for connectivity testing
+  server.tool("memory_ping", "Test connectivity to Universal Memory MCP Server", {}, async () => ({
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify({
+          status: "ok",
+          server: "universal-memory-mcp",
+          version: "0.2.0",
+          tools: TOOL_COUNT,
+          mode: process.env.MCP_MODE || "stdio",
+          timestamp: new Date().toISOString(),
+        }),
+      },
+    ],
+  }));
+
+  return server;
+}
+
+// ============================================================================
+// stdio mode — local process communication (default)
+// ============================================================================
+
+async function runStdio() {
+  const server = createMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Universal Memory MCP Server running on stdio (18 tools registered)");
+  console.error(`Universal Memory MCP Server running on stdio (${TOOL_COUNT} tools registered)`);
+}
+
+// ============================================================================
+// HTTP mode — remote access via Streamable HTTP (SSE + POST)
+// ============================================================================
+
+async function runHttp() {
+  const host = process.env.MCP_HOST || "0.0.0.0";
+  const port = parseInt(process.env.MCP_PORT || "3100", 10);
+
+  // Track active transports by session ID
+  const transports = new Map<string, StreamableHTTPServerTransport>();
+
+  const httpServer = createServer(async (req, res) => {
+    const url = new URL(req.url || "/", `http://${req.headers.host}`);
+
+    // CORS headers for cross-origin clients
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id");
+    res.setHeader("Access-Control-Expose-Headers", "mcp-session-id");
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    // Health check endpoint
+    if (url.pathname === "/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        status: "ok",
+        server: "universal-memory-mcp",
+        version: "0.2.0",
+        tools: TOOL_COUNT,
+        mode: "http",
+        activeSessions: transports.size,
+        timestamp: new Date().toISOString(),
+      }));
+      return;
+    }
+
+    // MCP endpoint
+    if (url.pathname === "/mcp") {
+      // Check for existing session
+      const sessionId = req.headers["mcp-session-id"] as string | undefined;
+      
+      if (sessionId && transports.has(sessionId)) {
+        // Route to existing session transport
+        const transport = transports.get(sessionId)!;
+        await transport.handleRequest(req, res);
+        return;
+      }
+
+      if (req.method === "POST" && !sessionId) {
+        // New session — create server and transport
+        const server = createMcpServer();
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+        });
+
+        transport.onclose = () => {
+          const sid = transport.sessionId;
+          if (sid) {
+            transports.delete(sid);
+            console.error(`[http] Session ${sid.slice(0, 8)} closed (${transports.size} active)`);
+          }
+        };
+
+        await server.connect(transport);
+        
+        if (transport.sessionId) {
+          transports.set(transport.sessionId, transport);
+          console.error(`[http] New session ${transport.sessionId.slice(0, 8)} (${transports.size} active)`);
+        }
+
+        await transport.handleRequest(req, res);
+        return;
+      }
+
+      // Invalid request
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid request. POST to /mcp to start a session." }));
+      return;
+    }
+
+    // 404 for unknown paths
+    res.writeHead(404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      error: "Not found",
+      endpoints: {
+        mcp: "/mcp (POST: JSON-RPC, GET: SSE stream)",
+        health: "/health (GET: health check)",
+      },
+    }));
+  });
+
+  httpServer.listen(port, host, () => {
+    console.error(`Universal Memory MCP Server running on http://${host}:${port}/mcp (${TOOL_COUNT} tools registered)`);
+    console.error(`Health check: http://${host}:${port}/health`);
+    console.error(`Mode: Streamable HTTP (SSE + POST)`);
+  });
+
+  // Graceful shutdown
+  const shutdown = () => {
+    console.error("\nShutting down...");
+    for (const [sid, transport] of transports) {
+      transport.close();
+      console.error(`  Closed session ${sid.slice(0, 8)}`);
+    }
+    httpServer.close(() => {
+      console.error("Server stopped.");
+      process.exit(0);
+    });
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+}
+
+// ============================================================================
+// Entry Point
+// ============================================================================
+
+async function main() {
+  const mode = process.env.MCP_MODE || process.argv[2] || "stdio";
+
+  switch (mode) {
+    case "http":
+    case "sse":
+    case "remote":
+      await runHttp();
+      break;
+    case "stdio":
+    default:
+      await runStdio();
+      break;
+  }
 }
 
 main().catch((error) => {

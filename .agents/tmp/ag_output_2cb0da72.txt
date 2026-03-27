@@ -1,5 +1,6 @@
-[master 24958b7] feat(rules): add memory auto-management rules for Antigravity and OpenCode
- 3 files changed, 69 insertions(+), 39 deletions(-)
- create mode 100644 .agents/rules/memory-rules.md
- create mode 100644 AGENTS.md
-===AGENT COMMAND DONE===
+Universal Memory MCP Server running on http://0.0.0.0:3100/mcp (18 tools registered)
+Health check: http://0.0.0.0:3100/health
+Mode: Streamable HTTP (SSE + POST)
+
+Shutting down...
+Server stopped.

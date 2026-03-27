@@ -85,11 +85,64 @@ export LLM_API_KEY="sk-xxx"     # 可选：智能提取 + 反思引擎
 | `EMBEDDING_MODEL` | ❌ | `jina-embeddings-v3` | 嵌入模型 |
 | `EMBEDDING_BASE_URL` | ❌ | `https://api.jina.ai/v1` | 嵌入 API 地址 |
 | `EMBEDDING_DIMENSIONS` | ❌ | `1024` | 向量维度 |
+| `MCP_MODE` | ❌ | `stdio` | 传输模式：`stdio` (本地) 或 `http` (远程) |
+| `MCP_HOST` | ❌ | `0.0.0.0` | HTTP 监听地址 |
+| `MCP_PORT` | ❌ | `3100` | HTTP 监听端口 |
+
+## 🌐 远程部署 (HTTP 模式)
+
+将 MCP Server 部署为中央记忆服务，多台设备共享同一份记忆：
+
+### 启动 HTTP 模式
+
+```bash
+# 服务端启动
+MCP_MODE=http MCP_PORT=3100 JINA_API_KEY="jina_xxx" node dist/index.js
+
+# 健康检查
+curl http://localhost:3100/health
+```
+
+### 客户端配置
+
+**OpenCode** (`opencode.json`)：
+```json
+{
+  "mcp": {
+    "universal-memory": {
+      "type": "remote",
+      "url": "http://192.168.1.100:3100/mcp"
+    }
+  }
+}
+```
+
+**其他支持 SSE 的 MCP 客户端**：将 URL 设为 `http://<服务器IP>:3100/mcp`
+
+### 部署架构
+
+```
+┌─ 服务器 (ThinkPad / 云服务器) ────────┐
+│  Universal Memory MCP Server          │
+│  http://0.0.0.0:3100/mcp              │
+│          ↕                            │
+│       LanceDB (记忆数据)              │
+└──────────┬────────────────────────────┘
+           │ HTTP
+     ┌─────┴──────────────┐
+     ▼                    ▼
+  本机工具              远程设备
+  Antigravity           Cursor / Claude Desktop
+  OpenCode              笔记本 / 手机
+```
 
 ## 🏗️ 架构
 
 ```
-MCP Server (stdio)
+MCP Server (stdio + HTTP dual-mode)
+  ├─ Transport Layer
+  │    ├── StdioServerTransport (本地进程通信)
+  │    └── StreamableHTTPServerTransport (远程 SSE + POST)
   └─ Tools Layer (18 tools)
        └─ Core Layer
             ├── Embedder (Jina v3, 1024-dim)
@@ -108,3 +161,4 @@ MCP Server (stdio)
 ```
 
 **数据兼容性**：直接使用 OpenClaw memory-lancedb-pro 的 LanceDB 数据库，零迁移。
+
