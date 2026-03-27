@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "universal-memory": {
+      "_comment_http": "远程模式 — 适用于多设备共享",
+      "url": "http://your-server-ip:3100/mcp",
+      "headers": {
+        "Authorization": "Bearer your-secret-token"
+      }
+    }
+  }
+}

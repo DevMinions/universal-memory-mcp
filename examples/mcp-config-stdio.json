@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "universal-memory": {
+      "_comment_stdio": "本地模式 — 适用于单机使用",
+      "command": "node",
+      "args": ["/path/to/universal-memory-mcp/dist/index.js"]
+    }
+  }
+}
