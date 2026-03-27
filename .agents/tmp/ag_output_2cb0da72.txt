@@ -1,2 +1,46 @@
-BUILD OK
+Universal Memory MCP Server running on stdio (18 tools registered)
+Stats: {
+  "totalCount": 364,
+  "scopeCounts": {
+    "global": 156,
+    "agent:main": 85,
+    "agent:memory-distiller": 65,
+    "agent:gamedev": 3,
+    "agent:sm": 35,
+    "agent:starlink": 14,
+    "agent:engineers-association": 6
+  },
+  "categoryCounts": {
+    "decision": 110,
+    "fact": 198,
+    "preference": 23,
+    "entity": 10,
+    "other": 23
+  }
+}
+Recall: Found 3 memories:
+
+1. [b4119d68-ed17-4865-8ca3-673b5b4f415d] [decision/global] (score: 0.54)
+   Decision principle (tech-stack): Choose TypeScript for AI projects requiring SDK integration + async I/O. Trigger: LLM API calls, high concurrency, full-stack unification. Action: Prioritize TS whe...
+
+2. [f52a4ef2-4253-4258-8bbc-0a33806a6609] [fact/global] (score: 0.54)
+   Pitfall: OpenClaw Gateway Extension fails to load with "Register failed: 404". Cause: TypeScript extensions require openclaw/plug
+List: {
+  "count": 5,
+  "offset": 0,
+  "memories": [
+    {
+      "id": "06b90b89-cbbd-41d2-b1d3-869683d0d0bf",
+      "text": "我喜欢用 TypeScript 写代码",
+      "category": "preference",
+      "scope": "global",
+      "importance": 0.7,
+      "timestamp": "2026-03-27T01:49:44.894Z"
+    },
+    {
+      "id": "4637db51-166a-4fc1-8e9b-7f69ff88ed1a",
+      "text": "JSONL distillation run completed with no new content. Cursor remains at same position.",
+      "category": "fact",
+      "scope": "global",
+      "imp
 ===AGENT COMMAND DONE===
