@@ -1,6 +1,5 @@
-Universal Memory MCP Server running on http://0.0.0.0:3100/mcp (18 tools registered)
-Health check: http://0.0.0.0:3100/health
-Mode: Streamable HTTP (SSE + POST)
 
-Shutting down...
-Server stopped.
+> universal-memory-mcp@0.1.0 build
+> tsc
+
+===AGENT COMMAND DONE===

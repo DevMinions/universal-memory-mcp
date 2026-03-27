@@ -88,6 +88,12 @@ async function runStdio() {
 async function runHttp() {
   const host = process.env.MCP_HOST || "0.0.0.0";
   const port = parseInt(process.env.MCP_PORT || "3100", 10);
+  const authToken = process.env.MCP_AUTH_TOKEN;
+
+  if (!authToken) {
+    console.error("⚠️  WARNING: MCP_AUTH_TOKEN not set — server has NO authentication!");
+    console.error("   Set MCP_AUTH_TOKEN for production deployments.");
+  }
 
   // Track active transports by session ID
   const transports = new Map<string, StreamableHTTPServerTransport>();
@@ -98,7 +104,7 @@ async function runHttp() {
     // CORS headers for cross-origin clients
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id, Authorization");
     res.setHeader("Access-Control-Expose-Headers", "mcp-session-id");
 
     if (req.method === "OPTIONS") {
@@ -120,6 +126,17 @@ async function runHttp() {
         timestamp: new Date().toISOString(),
       }));
       return;
+    }
+
+    // Token authentication (skip for health check above)
+    if (authToken) {
+      const authHeader = req.headers.authorization;
+      const providedToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      if (providedToken !== authToken) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Forbidden", message: "Invalid or missing Authorization: Bearer <token>" }));
+        return;
+      }
     }
 
     // MCP endpoint
