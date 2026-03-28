@@ -3,9 +3,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { createMemoryCoreFromEnv } from "./core/index.js";
 import { loadConfig } from "./core/config-loader.js";
 import { startScheduler, stopScheduler, type CronConfig, DEFAULT_CRON_CONFIG } from "./cron/scheduler.js";
+import { DEFAULT_BACKUP_CONFIG, type BackupConfig } from "./backup/backup-manager.js";
 import { handleApiRequest } from "./web/api.js";
 import { serveDashboard } from "./web/static-server.js";
 import { registerRecallTool } from "./tools/recall.js";
@@ -24,19 +27,21 @@ import { registerReflectTool } from "./tools/reflect.js";
 import { registerCompactTool } from "./tools/compact.js";
 import { registerExplainRankTool } from "./tools/explain-rank.js";
 import { registerSelfImprovementTools } from "./tools/self-improvement.js";
+import { registerBackupTool } from "./tools/backup.js";
+import { registerImportTool } from "./tools/import.js";
 
-const TOOL_COUNT = 18;
+const TOOL_COUNT = 20;
 
 import type { MemoryCore } from "./core/index.js";
 
-function createMcpServer(): { server: McpServer; core: MemoryCore } {
+function createMcpServer(sharedCore?: MemoryCore, extraCtx?: { dbPath: string; backupConfig: BackupConfig }): { server: McpServer; core: MemoryCore } {
   const server = new McpServer({
     name: "universal-memory",
-    version: "0.3.0",
+    version: "0.5.0",
   });
 
-  // Initialize core
-  const core = createMemoryCoreFromEnv();
+  // Use shared core or create new (stdio mode)
+  const core = sharedCore ?? createMemoryCoreFromEnv();
 
   // Register all tools
   registerRecallTool(server, core);
@@ -55,6 +60,12 @@ function createMcpServer(): { server: McpServer; core: MemoryCore } {
   registerCompactTool(server, core);
   registerExplainRankTool(server, core);
   registerSelfImprovementTools(server, core);
+  registerImportTool(server, core);
+
+  // Backup tool (needs dbPath + config)
+  if (extraCtx) {
+    registerBackupTool(server, core, extraCtx.dbPath, extraCtx.backupConfig);
+  }
 
   // Ping tool for connectivity testing
   server.tool("memory_ping", "Test connectivity to Universal Memory MCP Server", {}, async () => ({
@@ -64,7 +75,7 @@ function createMcpServer(): { server: McpServer; core: MemoryCore } {
         text: JSON.stringify({
           status: "ok",
           server: "universal-memory-mcp",
-          version: "0.3.0",
+          version: "0.5.0",
           tools: TOOL_COUNT,
           mode: process.env.MCP_MODE || "stdio",
           timestamp: new Date().toISOString(),
@@ -104,11 +115,19 @@ async function runHttp() {
   // Start cron scheduler if enabled
   const cfg = loadConfig();
   const cronConfig: CronConfig = { ...DEFAULT_CRON_CONFIG, ...(cfg as any).cron };
-  const { core } = createMcpServer();
-  startScheduler(core, cronConfig);
+  const backupConfig: BackupConfig = { ...DEFAULT_BACKUP_CONFIG, ...(cfg as any).backup };
 
-  // Web Dashboard API context
-  const apiCtx = { core };
+  // Resolve dbPath for backup
+  const dbPath = (cfg as any).dbPath
+    ? (cfg as any).dbPath.replace(/^~/, homedir())
+    : join(homedir(), ".openclaw/memory/lancedb-pro");
+
+  // Create a SINGLE shared MemoryCore for all sessions + Web API
+  const sharedCore = createMemoryCoreFromEnv();
+  startScheduler(sharedCore, cronConfig, backupConfig);
+
+  // Web Dashboard API context — shares the same core
+  const apiCtx = { core: sharedCore };
 
   // Track active transports by session ID
   const transports = new Map<string, StreamableHTTPServerTransport>();
@@ -145,7 +164,7 @@ async function runHttp() {
       res.end(JSON.stringify({
         status: "ok",
         server: "universal-memory-mcp",
-        version: "0.3.0",
+        version: "0.5.0",
         tools: TOOL_COUNT,
         mode: "http",
         activeSessions: transports.size,
@@ -177,10 +196,10 @@ async function runHttp() {
         return;
       }
 
-      // New session — create server and transport
+      // New session — create MCP server with SHARED core
       // Allow GET (for SSE) or POST (for Streamable HTTP). Use client's sessionId if provided.
       const newSessionId = sessionId || randomUUID();
-      const { server } = createMcpServer();
+      const { server } = createMcpServer(sharedCore, { dbPath, backupConfig });
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => newSessionId,
       });
@@ -215,7 +234,7 @@ async function runHttp() {
   });
 
   httpServer.listen(port, host, () => {
-    console.error(`Universal Memory MCP Server v0.3.0 running on http://${host}:${port}`);
+    console.error(`Universal Memory MCP Server v0.5.0 running on http://${host}:${port}`);
     console.error(`📊 Dashboard: http://${host}:${port}/`);
     console.error(`🔌 MCP endpoint: http://${host}:${port}/mcp`);
     console.error(`❤️  Health check: http://${host}:${port}/health`);

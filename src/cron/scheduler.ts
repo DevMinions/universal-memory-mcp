@@ -9,6 +9,7 @@
 
 import cron from "node-cron";
 import type { MemoryCore } from "../core/index.js";
+import type { BackupConfig } from "../backup/backup-manager.js";
 
 export interface CronConfig {
   enabled: boolean;
@@ -141,7 +142,7 @@ async function runReindex(core: MemoryCore) {
 /**
  * Start all configured cron tasks.
  */
-export function startScheduler(core: MemoryCore, config: CronConfig) {
+export function startScheduler(core: MemoryCore, config: CronConfig, backupConfig?: BackupConfig) {
   if (!config.enabled) {
     console.error("[cron] Scheduler disabled (set cron.enabled=true to activate).");
     return;
@@ -152,6 +153,28 @@ export function startScheduler(core: MemoryCore, config: CronConfig) {
     ["tierDowngrade", config.tierDowngrade, runTierDowngrade],
     ["reindex", config.reindex, runReindex],
   ];
+
+  // Add backup task if configured
+  if (backupConfig?.enabled && backupConfig.schedule) {
+    tasks.push(["backup", backupConfig.schedule, async (c: MemoryCore) => {
+      log("backup", "Starting...");
+      try {
+        const { createBackup } = await import("../backup/backup-manager.js");
+        const cfgObj = (await import("../core/config-loader.js")).loadConfig() as any;
+        const dbPath = cfgObj.dbPath
+          ? cfgObj.dbPath.replace(/^~/, (await import("node:os")).homedir())
+          : (await import("node:path")).join((await import("node:os")).homedir(), ".openclaw/memory/lancedb-pro");
+        const result = await createBackup(c, dbPath, backupConfig);
+        if (result.success) {
+          log("backup", `Done. Path: ${result.backupPath}, ${result.manifest?.memoryCount} memories, ${Math.round((result.manifest?.sizeBytes || 0) / 1024 / 1024)}MB. Cleaned: ${result.cleaned || 0}`);
+        } else {
+          log("backup", `Failed: ${result.error}`, "error");
+        }
+      } catch (e) {
+        log("backup", `Error: ${(e as Error).message}`, "error");
+      }
+    }]);
+  }
 
   for (const [name, schedule, fn] of tasks) {
     if (!schedule) continue;
