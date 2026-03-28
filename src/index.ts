@@ -177,36 +177,28 @@ async function runHttp() {
         return;
       }
 
-      if (req.method === "POST" && !sessionId) {
-        // New session — create server and transport
-        const { server } = createMcpServer();
-        const transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: () => randomUUID(),
-        });
+      // New session — create server and transport
+      // Allow GET (for SSE) or POST (for Streamable HTTP). Use client's sessionId if provided.
+      const newSessionId = sessionId || randomUUID();
+      const { server } = createMcpServer();
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => newSessionId,
+      });
 
-        transport.onclose = () => {
-          const sid = transport.sessionId;
-          if (sid) {
-            transports.delete(sid);
-            console.error(`[http] Session ${sid.slice(0, 8)} closed (${transports.size} active)`);
-          }
-        };
+      transports.set(newSessionId, transport);
 
-        await server.connect(transport);
-        
-        if (transport.sessionId) {
-          transports.set(transport.sessionId, transport);
-          console.error(`[http] New session ${transport.sessionId.slice(0, 8)} (${transports.size} active)`);
+      transport.onclose = () => {
+        if (transports.has(newSessionId)) {
+          transports.delete(newSessionId);
+          console.error(`[http] Session ${newSessionId.slice(0, 8)} closed (${transports.size} active)`);
         }
+      };
 
-        await transport.handleRequest(req, res);
+      await server.connect(transport);
+      console.error(`[http] New session ${newSessionId.slice(0, 8)} (${transports.size} active)`);
+      
+      await transport.handleRequest(req, res);
         return;
-      }
-
-      // Invalid request
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Invalid request. POST to /mcp to start a session." }));
-      return;
     }
 
     // 404 for unknown paths
