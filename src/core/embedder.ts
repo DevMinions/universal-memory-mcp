@@ -131,29 +131,47 @@ interface EmbeddingCapabilities {
 
 // Known embedding model dimensions
 const EMBEDDING_DIMENSIONS: Record<string, number> = {
+  // OpenAI
   "text-embedding-3-small": 1536,
   "text-embedding-3-large": 3072,
+  "text-embedding-ada-002": 1536,
+
+  // Google Gemini
   "text-embedding-004": 768,
   "gemini-embedding-001": 3072,
-  "nomic-embed-text": 768,
-  "mxbai-embed-large": 1024,
-  "BAAI/bge-m3": 1024,
-  "all-MiniLM-L6-v2": 384,
-  "all-mpnet-base-v2": 512,
+  "gemini-embedding-2-preview": 3072,
 
-  // Jina v5
+  // Jina
+  "jina-embeddings-v3": 1024,
   "jina-embeddings-v5-text-small": 1024,
   "jina-embeddings-v5-text-nano": 768,
+  "jina-embeddings-v4": 1024,
 
-  // Voyage recommended models
+  // Voyage
   "voyage-4": 1024,
   "voyage-4-lite": 1024,
   "voyage-4-large": 1024,
-
-  // Voyage legacy models
   "voyage-3": 1024,
   "voyage-3-lite": 512,
   "voyage-3-large": 1024,
+
+  // DashScope (Alibaba)
+  "text-embedding-v4": 1024,
+  "text-embedding-v3": 1024,
+
+  // Ollama local models
+  "mxbai-embed-large": 1024,
+  "snowflake-arctic-embed2": 1024,
+  "nomic-embed-text": 768,
+  "nomic-embed-text:v1.5": 768,
+  "all-MiniLM-L6-v2": 384,
+  "all-mpnet-base-v2": 512,
+  "BAAI/bge-m3": 1024,
+  "bge-m3": 1024,
+
+  // SiliconFlow
+  "BAAI/bge-large-zh-v1.5": 1024,
+  "BAAI/bge-large-en-v1.5": 1024,
 };
 
 // ============================================================================

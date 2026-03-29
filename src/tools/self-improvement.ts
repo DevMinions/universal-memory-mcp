@@ -128,4 +128,112 @@ export function registerSelfImprovementTools(server: McpServer, core: MemoryCore
       };
     },
   );
+
+  // --- self_improvement_extract_skill ---
+  server.tool(
+    "self_improvement_extract_skill",
+    "Create skill scaffold from a learning entry. Extracts entry from LEARNINGS.md/ERRORS.md and returns a skill template.",
+    {
+      learningId: z.string().describe("Entry ID format: LRN-YYYYMMDD-001 or ERR-YYYYMMDD-001"),
+      skillName: z.string().describe("Skill name (lowercase with hyphens, e.g. 'fix-timeout-error')"),
+      sourceFile: z
+        .enum(["LEARNINGS.md", "ERRORS.md"])
+        .optional()
+        .default("LEARNINGS.md")
+        .describe("Source file"),
+      outputDir: z.string().optional().default("skills").describe("Relative output directory"),
+    },
+    async ({ learningId, skillName, sourceFile, outputDir }) => {
+      try {
+        const baseDir = core.store.dbPath;
+        const learningsDir = join(baseDir, ".learnings");
+        const filePath = join(learningsDir, sourceFile);
+
+        let content: string;
+        try {
+          content = await readFile(filePath, "utf-8");
+        } catch {
+          return {
+            content: [{ type: "text" as const, text: `File not found: ${sourceFile}` }],
+            isError: true,
+          };
+        }
+
+        // Find the entry by ID
+        const lines = content.split("\n");
+        let entryLines: string[] = [];
+        let found = false;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].includes(learningId)) {
+            found = true;
+            // Capture until next entry or EOF
+            for (let j = i; j < lines.length; j++) {
+              if (j > i && /^### (LRN|ERR)-\d{8}-\d{3}/.test(lines[j])) break;
+              entryLines.push(lines[j]);
+            }
+            break;
+          }
+        }
+
+        if (!found) {
+          return {
+            content: [{ type: "text" as const, text: `Entry not found: ${learningId} in ${sourceFile}` }],
+            isError: true,
+          };
+        }
+
+        const entryText = entryLines.join("\n").trim();
+
+        // Generate skill scaffold
+        const scaffold = {
+          skillPath: `${outputDir}/${skillName}/SKILL.md`,
+          content: [
+            "---",
+            `name: ${skillName}`,
+            `description: Skill extracted from ${learningId}`,
+            "---",
+            "",
+            `# ${skillName}`,
+            "",
+            `> Auto-generated from ${sourceFile} entry ${learningId}`,
+            "",
+            "## Context",
+            "",
+            entryText,
+            "",
+            "## Steps",
+            "",
+            "1. TODO: Define specific steps",
+            "2. TODO: Add verification criteria",
+            "",
+            "## References",
+            "",
+            `- Source: ${sourceFile} → ${learningId}`,
+          ].join("\n"),
+        };
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              status: "skill_scaffold_generated",
+              learningId,
+              skillName,
+              suggestedPath: scaffold.skillPath,
+              scaffold: scaffold.content,
+              note: "Copy the scaffold content to create the skill file.",
+            }, null, 2),
+          }],
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `Extract skill failed: ${error instanceof Error ? error.message : String(error)}`,
+          }],
+          isError: true,
+        };
+      }
+    },
+  );
 }

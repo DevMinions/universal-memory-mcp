@@ -17,6 +17,14 @@ export function registerUpdateTool(server: McpServer, core: MemoryCore) {
     },
     async ({ id, text, importance, category }) => {
       try {
+        // Resolve ID prefix
+        const existing = await core.store.getById(id);
+        if (!existing) {
+          return {
+            content: [{ type: "text" as const, text: `Memory not found: ${id}` }],
+          };
+        }
+
         const updates: Record<string, any> = {};
         if (text !== undefined) {
           updates.text = text;
@@ -31,35 +39,80 @@ export function registerUpdateTool(server: McpServer, core: MemoryCore) {
           };
         }
 
-        const updated = await core.store.update(id, updates);
+        // Supersede logic: for preference/entity text updates, create new version
+        const effectiveCategory = category || existing.category;
+        const isVersioned = (effectiveCategory === "preference" || effectiveCategory === "entity");
+        const hasTextChange = text !== undefined && text !== existing.text;
+
+        if (isVersioned && hasTextChange) {
+          // 1. Mark original as superseded
+          await core.store.patchMetadata(existing.id, {
+            state: "superseded",
+            superseded_at: Date.now(),
+            superseded_by: "pending", // will be updated after new entry created
+          });
+
+          // 2. Create new versioned entry
+          const vector = await core.embedder.embedPassage(text!);
+          const newEntry = await core.store.store({
+            text: text!,
+            category: effectiveCategory,
+            scope: existing.scope,
+            importance: importance ?? existing.importance,
+            vector,
+            metadata: JSON.stringify({
+              ...(existing.metadata ? JSON.parse(existing.metadata) : {}),
+              supersedes: existing.id,
+              version_source: "memory_update",
+            }),
+          });
+
+          // 3. Update original's superseded_by pointer
+          await core.store.patchMetadata(existing.id, {
+            superseded_by: newEntry.id,
+          });
+
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                status: "superseded",
+                originalId: existing.id,
+                newId: newEntry.id,
+                category: effectiveCategory,
+                scope: existing.scope,
+                note: `Created new version (${effectiveCategory} supersede). Original preserved.`,
+              }),
+            }],
+          };
+        }
+
+        // Normal update (non-versioned categories or non-text changes)
+        const updated = await core.store.update(existing.id, updates);
         if (!updated) {
           return {
-            content: [{ type: "text" as const, text: `Memory not found: ${id}` }],
+            content: [{ type: "text" as const, text: `Update failed for: ${id}` }],
           };
         }
 
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({
-                status: "updated",
-                id: updated.id,
-                category: updated.category,
-                scope: updated.scope,
-                importance: updated.importance,
-              }),
-            },
-          ],
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              status: "updated",
+              id: updated.id,
+              category: updated.category,
+              scope: updated.scope,
+              importance: updated.importance,
+            }),
+          }],
         };
       } catch (error) {
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Memory update failed: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
+          content: [{
+            type: "text" as const,
+            text: `Memory update failed: ${error instanceof Error ? error.message : String(error)}`,
+          }],
           isError: true,
         };
       }

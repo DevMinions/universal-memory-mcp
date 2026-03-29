@@ -30,7 +30,7 @@ import { registerSelfImprovementTools } from "./tools/self-improvement.js";
 import { registerBackupTool } from "./tools/backup.js";
 import { registerImportTool } from "./tools/import.js";
 
-const TOOL_COUNT = 20;
+const TOOL_COUNT = 21;
 
 import type { MemoryCore } from "./core/index.js";
 
