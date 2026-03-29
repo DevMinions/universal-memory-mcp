@@ -5,3 +5,7 @@ dist/
 config.json
 .agents/
 docs/
+
+backups/
+test-backups/
+config.json

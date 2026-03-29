@@ -8,6 +8,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { MemoryCore } from "../core/index.js";
 import { getCronLogs } from "../cron/scheduler.js";
+import { createBackup, listBackups, restoreBackup, type BackupConfig, DEFAULT_BACKUP_CONFIG } from "../backup/backup-manager.js";
+import { loadConfig } from "../core/config-loader.js";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 // ============================================================================
 // Types
@@ -292,6 +296,69 @@ export async function handleApiRequest(
     if (path === "/api/actions/reindex" && method === "POST") {
       const result = await ctx.core.store.rebuildFtsIndex();
       jsonResponse(res, 200, { action: "reindex", ...result });
+      return true;
+    }
+
+    // GET /api/backups — list available backups
+    if (path === "/api/backups" && method === "GET") {
+      const cfg = loadConfig() as any;
+      const backupConfig: BackupConfig = { ...DEFAULT_BACKUP_CONFIG, ...cfg.backup };
+      const backups = listBackups(backupConfig.dir);
+      jsonResponse(res, 200, {
+        count: backups.length,
+        maxBackups: backupConfig.maxBackups,
+        backupDir: backupConfig.dir,
+        backups: backups.map(b => ({
+          ...b,
+          sizeMB: Math.round(b.sizeBytes / 1024 / 1024 * 10) / 10,
+        })),
+      });
+      return true;
+    }
+
+    // POST /api/actions/backup — create a new backup
+    if (path === "/api/actions/backup" && method === "POST") {
+      const cfg = loadConfig() as any;
+      const backupConfig: BackupConfig = { ...DEFAULT_BACKUP_CONFIG, ...cfg.backup };
+      const dbPath = cfg.dbPath
+        ? cfg.dbPath.replace(/^~/, homedir())
+        : join(homedir(), ".openclaw/memory/lancedb-pro");
+
+      const result = await createBackup(ctx.core, dbPath, backupConfig);
+      if (!result.success) {
+        errorResponse(res, 500, `Backup failed: ${result.error}`);
+        return true;
+      }
+      jsonResponse(res, 200, {
+        action: "backup_created",
+        path: result.backupPath,
+        memoryCount: result.manifest?.memoryCount,
+        sizeMB: Math.round((result.manifest?.sizeBytes || 0) / 1024 / 1024 * 10) / 10,
+        cleanedOldBackups: result.cleaned,
+      });
+      return true;
+    }
+
+    // POST /api/actions/restore — restore from a backup
+    if (path === "/api/actions/restore" && method === "POST") {
+      const body = JSON.parse(await readBody(req) || "{}");
+      const cfg = loadConfig() as any;
+      const backupConfig: BackupConfig = { ...DEFAULT_BACKUP_CONFIG, ...cfg.backup };
+      const dbPath = cfg.dbPath
+        ? cfg.dbPath.replace(/^~/, homedir())
+        : join(homedir(), ".openclaw/memory/lancedb-pro");
+
+      const result = await restoreBackup(dbPath, backupConfig.dir, body.backupName);
+      if (!result.success) {
+        errorResponse(res, 500, `Restore failed: ${result.error}`);
+        return true;
+      }
+      jsonResponse(res, 200, {
+        action: "restored",
+        from: result.restoredFrom,
+        memoryCount: result.memoryCount,
+        note: "Server restart required to reload the restored database.",
+      });
       return true;
     }
 
