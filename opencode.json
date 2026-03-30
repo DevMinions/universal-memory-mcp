@@ -3,11 +3,8 @@
   "mcp": {
     "universal-memory": {
       "type": "local",
-      "command": ["node", "/home/adamyu/workspace/universal-memory-mcp/dist/index.js"],
-      "enabled": true,
-      "environment": {
-        "JINA_API_KEY": "${JINA_API_KEY}"
-      }
+      "command": ["npx", "-y", "mcp-remote", "http://localhost:3100/mcp", "--allow-http"],
+      "enabled": true
     }
   }
 }
